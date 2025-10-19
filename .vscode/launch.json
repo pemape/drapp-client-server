@@ -1,0 +1,38 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Flask",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "${cwd}\\flask-app\\run.py",
+                "FLASK_DEBUG": "1"
+            },
+            "args": [
+                "run",
+                "--no-debugger",
+                "--no-reload"
+            ],
+            "jinja": true,
+            "autoStartBrowser": true
+        },
+        {
+            "name": "Python Debugger: Run.py Direct",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${cwd}/flask-app/run.py", // <-- Specify the file to execute
+            "env": {
+                "FLASK_DEBUG": "1", // Still useful for general Flask debugging
+                "LOG_LEVEL": "DEBUG"
+            },
+            "args": [],
+            "jinja": true,
+            "autoStartBrowser": true
+        }
+    ]
+}

@@ -27,6 +27,41 @@ import requests as req
 import json
 from PIL import Image, ImageDraw, ImageFont
 import io
+from dotenv import load_dotenv
+import logging
+
+load_dotenv()
+
+# Setup logging configuration
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
+LOG_FORMAT = os.environ.get('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+LOG_FILE = os.environ.get('LOG_FILE', 'app.log')
+
+# Validate log level
+_valid_log_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'TRACE']
+if LOG_LEVEL not in _valid_log_levels:
+    LOG_LEVEL = 'INFO'
+
+# Convert to logging constants
+LOG_LEVEL_INT = getattr(logging, LOG_LEVEL, logging.INFO)
+
+# Enable trace level if specified
+if LOG_LEVEL == 'TRACE':
+    LOG_LEVEL_INT = 5  # Custom trace level
+    logging.addLevelName(5, 'TRACE')
+
+# Setup logging
+logging.basicConfig(
+    level=LOG_LEVEL_INT,
+    format=LOG_FORMAT,
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler()
+    ]
+)
+
+# Create logger for mock API
+mock_logger = logging.getLogger('mock_api')
 
 app = FastAPI()
 
@@ -40,6 +75,7 @@ queue_lock = threading.Lock()
 def add_text_to_image(image_data: str) -> str:
     """Add 'Spracovaný' text to the image and return base64 string."""
     try:
+        mock_logger.debug("Processing image - adding 'Spracovaný' text")
         # Decode base64 to image
         image_bytes = base64.b64decode(image_data)
         img = Image.open(io.BytesIO(image_bytes))
@@ -80,11 +116,12 @@ def add_text_to_image(image_data: str) -> str:
         img.save(buffered, format=img.format if img.format else "PNG")
         return base64.b64encode(buffered.getvalue()).decode('utf-8')
     except Exception as e:
-        print(f"Error processing image: {e}")
+        mock_logger.error(f"Error processing image: {e}")
         return image_data  # Return original image if processing fails
 
 
 def processing_worker():
+    mock_logger.info("Starting processing worker thread")
     while True:
         with queue_lock:
             if processing_queue:
@@ -92,6 +129,7 @@ def processing_worker():
             else:
                 processing_id = None
         if processing_id:
+            mock_logger.debug(f"Processing image with ID: {processing_id}")
             time.sleep(5)  # Simulate processing time
             if processing_id in processed_images:
                 # Add text to the image
@@ -101,6 +139,9 @@ def processing_worker():
                 processed_images[processing_id]["processed_at"] = processed_timestamp.isoformat()
                 processed_images[processing_id]["answer"] = random.choice(
                     ["zdravý", "retinopatia", "glaukóm", "leukokória", "amblyopia", "strabizmus"])
+                
+                mock_logger.info(f"Image {processing_id} processed with result: {processed_images[processing_id]['answer']}")
+                
                 rec_endpoint = processed_images[processing_id].get("recieving_endpoint")
                 if rec_endpoint:
                     try:
@@ -118,11 +159,14 @@ def processing_worker():
                                 }
                             }
                         )
-                        print("--------------------------------")
-                        print(f"Sent result to {rec_endpoint}, status: {resp.status_code}, message: {resp.text}")
+                        mock_logger.info(f"Sent result to {rec_endpoint}, status: {resp.status_code}")
+                        if LOG_LEVEL in ['DEBUG', 'TRACE']:
+                            mock_logger.debug(f"Response: {resp.text}")
                     except Exception as e:
-                        print(f"Error sending result: {e}")
+                        mock_logger.error(f"Error sending result to {rec_endpoint}: {e}")
         else:
+            if LOG_LEVEL == 'TRACE':
+                mock_logger.log(5, "No images in processing queue, waiting...")
             time.sleep(1)
 
 
@@ -164,7 +208,10 @@ async def process_image(
         payload: ImagePayload
 ):
     try:
-        # print(f"Received payload: {payload}")
+        mock_logger.info(f"Received image processing request for ID: {payload.file.id}")
+        mock_logger.debug(f"Processing method: {payload.method.name}")
+        mock_logger.debug(f"Metadata: patient_id={payload.metadata.patient_id}, eye_side={payload.metadata.eye_side}")
+        
         # Decode base64 image
         photo_id = payload.file.id
         # Load image from file path
@@ -210,8 +257,7 @@ async def process_image(
         with queue_lock:
             processing_queue.append(processing_id)
 
-        # print(json.dumps(payload, indent=2))
-
+        mock_logger.info(f"Image {processing_id} queued for processing")
         return JSONResponse({
             "status": "success",
             "message": "Image received and queued for processing",
@@ -219,13 +265,15 @@ async def process_image(
         })
 
     except Exception as e:
-        print(f"Error: {e}")
+        mock_logger.error(f"Error processing image request: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/processing-status/{processing_id}")
 async def get_processing_status(processing_id: str):
+    mock_logger.debug(f"Status check for processing ID: {processing_id}")
     if processing_id not in processed_images:
+        mock_logger.warning(f"Processing ID not found: {processing_id}")
         raise HTTPException(status_code=404, detail="Processing ID not found")
 
     # In a real implementation, you would check the actual processing status
@@ -239,13 +287,18 @@ async def health_check():
     Health check endpoint for the mock API.
     Returns a 200 status code when the server is running properly.
     """
+    mock_logger.debug("Health check requested")
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "service": "mock-processing-api",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "log_level": LOG_LEVEL
     }
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    # Use configurable port from environment variable
+    port = int(os.environ.get('MOCK_API_PORT') or 5000)
+    mock_logger.info(f"Starting Mock API server on port {port} with log level {LOG_LEVEL}")
+    uvicorn.run(app, host="0.0.0.0", port=port)

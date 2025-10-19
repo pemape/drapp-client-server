@@ -12,22 +12,22 @@ logger = logging.getLogger(__name__)
 @bp.route('/add', methods=['POST'])
 @jwt_required()
 def add_doctor():
-    """Pridanie doktora (len pre super_admina)."""
-    logger.info("add_doctor endpoint vyžiadaný")
+    """Add doctor (only for super_admin)."""
+    logger.info("add_doctor endpoint requested")
     user_id = get_jwt_identity()
 
     if not (request.is_json and request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']):
-        logger.error("add_doctor: Neplatný vstup alebo Accept header")
+        logger.error("add_doctor: Invalid input or Accept header")
         return jsonify({'error': 'Invalid input or only JSON responses supported'}), 406
 
     data = request.get_json()
-    logger.debug("add_doctor: Prijaté dáta, keys: %s", list(data.keys()))
+    logger.debug("add_doctor: Received data, keys: %s", list(data.keys()))
 
     try:
         response_data, status = doctor_service.add_doctor(user_id, data)
-        logger.info("add_doctor: Doktor pridaný so statusom %s", status)
+        logger.info("add_doctor: Doctor added with status %s", status)
     except Exception as e:
-        logger.exception("add_doctor: Výnimka pri pridávaní doktora: %s", e)
+        logger.exception("add_doctor: Exception while adding doctor: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
 
     return jsonify(response_data), status
@@ -36,22 +36,22 @@ def add_doctor():
 @bp.route('/update/<int:doctor_id>', methods=['PUT'])
 @jwt_required()
 def update_doctor(doctor_id):
-    """Úprava doktora (len pre super_admina)."""
-    logger.info("update_doctor endpoint vyžiadaný pre doctor_id: %s", doctor_id)
+    """Update doctor (only for super_admin)."""
+    logger.info("update_doctor endpoint requested for doctor_id: %s", doctor_id)
     user_id = get_jwt_identity()
 
     if not (request.is_json and request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']):
-        logger.error("update_doctor: Neplatný vstup alebo Accept header")
+        logger.error("update_doctor: Invalid input or Accept header")
         return jsonify({'error': 'Invalid input or only JSON responses supported'}), 406
 
     data = request.get_json()
-    logger.debug("update_doctor: Prijaté dáta, keys: %s", list(data.keys()))
+    logger.debug("update_doctor: Received data, keys: %s", list(data.keys()))
 
     try:
         response_data, status = doctor_service.update_doctor(user_id, doctor_id, data)
-        logger.info("update_doctor: Doktor s id %s aktualizovaný so statusom %s", doctor_id, status)
+        logger.info("update_doctor: Doctor with id %s updated with status %s", doctor_id, status)
     except Exception as e:
-        logger.exception("update_doctor: Výnimka pri aktualizácii doktora: %s", e)
+        logger.exception("update_doctor: Exception while updating doctor: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
 
     return jsonify(response_data), status
@@ -60,19 +60,19 @@ def update_doctor(doctor_id):
 @bp.route('/list', methods=['GET'])
 @jwt_required()
 def list_doctors():
-    """Získanie zoznamu doktorov (len pre super_admina)."""
-    logger.info("list_doctors endpoint vyžiadaný")
+    """Get list of doctors (only for super_admin)."""
+    logger.info("list_doctors endpoint requested")
     user_id = get_jwt_identity()
 
     if not (request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']):
-        logger.error("list_doctors: Frontend nevyžaduje JSON odpoveď")
+        logger.error("list_doctors: Frontend does not require JSON response")
         return jsonify({'error': 'Only JSON responses supported'}), 406
 
     try:
         response_data, status = doctor_service.get_doctors(user_id)
-        logger.info("list_doctors: Zoznam doktorov načítaný so statusom %s", status)
+        logger.info("list_doctors: Doctors list loaded with status %s", status)
     except Exception as e:
-        logger.exception("list_doctors: Výnimka pri získavaní doktorov: %s", e)
+        logger.exception("list_doctors: Exception while getting doctors: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
 
     return jsonify(response_data), status
@@ -81,15 +81,15 @@ def list_doctors():
 @bp.route('/<int:doctor_id>', methods=['GET'])
 @jwt_required()
 def get_doctor(doctor_id):
-    """Získanie informácií o konkrétnom doktorovi."""
-    logger.info("get_doctor endpoint vyžiadaný pre doctor_id: %s", doctor_id)
+    """Get information about specific doctor."""
+    logger.info("get_doctor endpoint requested for doctor_id: %s", doctor_id)
     user_id = get_jwt_identity()
 
     try:
         response_data, status = doctor_service.get_doctor(user_id, doctor_id)
-        logger.info("get_doctor: Informácie o doktorovi načítané so statusom %s", status)
+        logger.info("get_doctor: Doctor information loaded with status %s", status)
     except Exception as e:
-        logger.exception("get_doctor: Výnimka pri získavaní doktora: %s", e)
+        logger.exception("get_doctor: Exception while getting doctor: %s", e)
         if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
             return jsonify({'error': 'Internal server error'}), 500
         else:
@@ -104,7 +104,7 @@ def get_doctor(doctor_id):
 @bp.route('/', methods=['GET'])
 @jwt_required()
 def get_doctors_page():
-    """Zobrazenie hlavnej stránky doktorov (len pre super_admina)."""
+    """Display main doctors page (only for super_admin)."""
     user_id = get_jwt_identity()
     try:
         user_id_int = int(user_id)
@@ -118,5 +118,5 @@ def get_doctors_page():
     if status != 200:
         return render_template('error_404.html'), 404
     else:
-        logger.info("Používateľ s id %s pristupuje na stránku adminov", user_id_int)
+        logger.info("User with id %s accessing doctors page", user_id_int)
         return render_template("doctors.html"), status

@@ -1,4 +1,5 @@
 import logging
+import os  # <-- ADD THIS IMPORT
 from flask import Blueprint, request, jsonify, abort, render_template, session, flash, redirect, url_for
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from server.models import User
@@ -11,34 +12,46 @@ account_service = AccountService()
 
 logger = logging.getLogger(__name__)
 
+# --- LOG LEVEL SEVERITY LOGIC ---
+# Get logging level from environment (default INFO)
+log_level_str = os.environ.get('LOG_LEVEL', 'INFO').upper()
+
+# Convert text level to logging module constant
+# Use .get() with INFO default for invalid values
+log_level = getattr(logging, log_level_str, logging.INFO)
+
+# Set logging level for this logger
+logger.setLevel(log_level)
+# --- END LOG LEVEL SEVERITY LOGIC ---
+
 
 @bp.route('/', methods=['GET'], endpoint='account_page')
 @jwt_required()
 def account_page():
-    # Jednoduché zobrazenie stránky účtu
+    # Simple display of account page
     return render_template("account.html")
 
 
 @bp.route('/info', methods=['GET'], endpoint='account_info')
 @jwt_required()
 def account_info():
-    # Vstupná kontrola: validácia user_id z tokenu
+    # Input validation: validate user_id from token
     user_id = get_jwt_identity()
     try:
         user_id_int = int(user_id)
     except (ValueError, TypeError):
-        logger.error("Neplatný user_id získaný z tokenu: %s", user_id)
+        logger.error("Invalid user_id obtained from token: %s", user_id)
         if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
-            return jsonify({'error': 'Neplatné údaje tokenu'}), 400
+            return jsonify({'error': 'Invalid token data'}), 400
         else:
-            flash("Neplatné údaje tokenu", "error")
+            flash("Invalid token data", "error")
             return render_template("error_400.html"), 400
 
-    # Získanie údajov o účte pomocou service vrstvy
+    # Get account data using service layer
     response, status = AccountService.get_account_info(user_id_int)
-    logger.info("Údaje účtu boli úspešne získané pre používateľa %s", user_id_int)
+    logger.debug("Account data successfully retrieved for user %s", user_id_int)
 
-    # Výstupná kontrola: podľa hlavičky Accept vrátime JSON alebo HTML
+    # Output control: return JSON or HTML based on Accept header
     if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
         return jsonify(response), status
     else:
@@ -48,48 +61,48 @@ def account_info():
 @bp.route('/edit', methods=['POST'], endpoint='edit_current_account_post')
 @jwt_required()
 def edit_current_account_post():
-    logger.info("Spustená požiadavka na úpravu účtu")
+    logger.info("Started account edit request")
 
-    # Vstupná kontrola: zistieme, či ide o JSON alebo formulárové dáta
+    # Input validation: check if it's JSON or form data
     if request.is_json:
         data = request.get_json()
-        # Príklad validácie: overíme, či JSON obsahuje potrebné pole "some_required_field"
+        # Example validation: check if JSON contains required field "some_required_field"
         if not data or 'some_required_field' not in data:
-            logger.error("Chýba povinné pole v JSON vstupoch")
+            logger.error("Missing required field in JSON inputs")
             if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
-                return jsonify({'error': 'Chýba povinné pole'}), 400
+                return jsonify({'error': 'Missing required field'}), 400
             else:
-                flash("Chýba povinné pole", "error")
+                flash("Missing required field", "error")
                 return render_template("error_400.html"), 400
     else:
         data = request.form
-        # Príklad validácie pre formuláre
+        # Example validation for forms
         if not data or 'some_required_field' not in data:
-            logger.error("Chýba povinné pole vo formulárových dátach")
-            flash("Chýba povinné pole", "error")
+            logger.error("Missing required field in form data")
+            flash("Missing required field", "error")
             return render_template("error_400.html"), 400
 
-    # Tu by nasledovala logika pre aktualizáciu účtu (napr. account_service.update_account(data))
-    # Pre ukážku zavoláme len account_info(), aby sme vrátili aktuálne údaje
-    logger.info("Údaje na úpravu účtu: %s", data)
+    # Here would follow the logic for account update (e.g. account_service.update_account(data))
+    # For demo purposes, we'll just call account_info() to return current data
+    logger.info("Account edit data: %s", data)
     return account_info()
 
 
 def _get_current_user():
-    """Spoločná logika pre získanie údajov o prihlásenom používateľovi."""
+    """Common logic for getting logged-in user data."""
     user_id = get_jwt_identity()
     try:
         user_id_int = int(user_id)
     except (ValueError, TypeError):
-        logger.error("Neplatný user_id pre získanie aktuálneho používateľa: %s", user_id)
-        flash('Neplatný používateľ', 'error')
+        logger.error("Invalid user_id for getting current user: %s", user_id)
+        flash('Invalid user', 'error')
         return render_template('error_400.html'), 400
 
     user = db.session.get(User, user_id_int)
     if not user:
-        logger.error("Používateľ s id %s nebol nájdený", user_id_int)
+        logger.error("User with id %s not found", user_id_int)
         flash('User not found', 'error')
         return render_template('error_404.html'), 404
 
-    logger.info("Používateľ %s úspešne načítaný", user_id_int)
+    logger.info("User %s successfully loaded", user_id_int)
     return render_template("account.html", user=user)

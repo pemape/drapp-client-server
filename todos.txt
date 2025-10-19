@@ -1,0 +1,12 @@
+Detske choroby
+
+# TODO: 
+API endpoints are not consistent with documentation
+also remove - DELETE method can be refactored
+
+# TODO
+investigate why sometimes user need to click twice on a menu tab before he/she can navigate to that page
+
+
+# INFERENCE connection
+

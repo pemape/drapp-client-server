@@ -14,22 +14,22 @@ logger = logging.getLogger(__name__)
 @bp.route('/add', methods=['POST'])
 @jwt_required()
 def add_admin():
-    """Pridanie admina (len pre super_admina)."""
-    logger.info("add_admin endpoint vyžiadaný")
+    """Add admin (only for super_admin)."""
+    logger.info("add_admin endpoint requested")
     user_id = get_jwt_identity()
 
     if not (request.is_json and request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']):
-        logger.error("add_admin: Neplatný vstup alebo Accept header")
+        logger.error("add_admin: Invalid input or Accept header")
         return jsonify({'error': 'Invalid input or only JSON responses supported'}), 406
 
     data = request.get_json()
-    logger.debug("add_admin: Prijaté dáta, keys: %s", list(data.keys()))
+    logger.debug("add_admin: Received data, keys: %s", list(data.keys()))
 
     try:
         response_data, status = admin_service.add_admin(user_id, data)
-        logger.info("add_admin: Admin pridaný so statusom %s", status)
+        logger.info("add_admin: Admin added with status %s", status)
     except Exception as e:
-        logger.exception("add_admin: Výnimka pri pridávaní admina: %s", e)
+        logger.exception("add_admin: Exception while adding admin: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
 
     return jsonify(response_data), status
@@ -38,22 +38,22 @@ def add_admin():
 @bp.route('/update/<int:admin_id>', methods=['PUT'])
 @jwt_required()
 def update_admin(admin_id):
-    """Úprava admina (len pre super_admina)."""
-    logger.info("update_admin endpoint vyžiadaný pre admin_id: %s", admin_id)
+    """Update admin (only for super_admin)."""
+    logger.info("update_admin endpoint requested for admin_id: %s", admin_id)
     user_id = get_jwt_identity()
 
     if not (request.is_json and request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']):
-        logger.error("update_admin: Neplatný vstup alebo Accept header")
+        logger.error("update_admin: Invalid input or Accept header")
         return jsonify({'error': 'Invalid input or only JSON responses supported'}), 406
 
     data = request.get_json()
-    logger.debug("update_admin: Prijaté dáta, keys: %s", list(data.keys()))
+    logger.debug("update_admin: Received data, keys: %s", list(data.keys()))
 
     try:
         response_data, status = admin_service.update_admin(user_id, admin_id, data)
-        logger.info("update_admin: Admin s id %s aktualizovaný so statusom %s", admin_id, status)
+        logger.info("update_admin: Admin with id %s updated with status %s", admin_id, status)
     except Exception as e:
-        logger.exception("update_admin: Výnimka pri aktualizácii admina: %s", e)
+        logger.exception("update_admin: Exception while updating admin: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
 
     return jsonify(response_data), status
@@ -62,19 +62,19 @@ def update_admin(admin_id):
 @bp.route('/list', methods=['GET'])
 @jwt_required()
 def list_admins():
-    """Získanie zoznamu adminov (len pre super_admina)."""
-    logger.info("list_admins endpoint vyžiadaný")
+    """Get list of admins (only for super_admin)."""
+    logger.info("list_admins endpoint requested")
     user_id = get_jwt_identity()
 
     if not (request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']):
-        logger.error("list_admins: Frontend nevyžaduje JSON odpoveď")
+        logger.error("list_admins: Frontend does not require JSON response")
         return jsonify({'error': 'Only JSON responses supported'}), 406
 
     try:
         response_data, status = admin_service.get_admins(user_id)
-        logger.info("list_admins: Zoznam adminov načítaný so statusom %s", status)
+        logger.info("list_admins: Admins list loaded with status %s", status)
     except Exception as e:
-        logger.exception("list_admins: Výnimka pri získavaní adminov: %s", e)
+        logger.exception("list_admins: Exception while getting admins: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
 
     return jsonify(response_data), status
@@ -83,15 +83,15 @@ def list_admins():
 @bp.route('/<int:admin_id>', methods=['GET'])
 @jwt_required()
 def get_admin(admin_id):
-    """Získanie informácií o konkrétnom adminovi."""
-    logger.info("get_admin endpoint vyžiadaný pre admin_id: %s", admin_id)
+    """Get information about specific admin."""
+    logger.info("get_admin endpoint requested for admin_id: %s", admin_id)
     user_id = get_jwt_identity()
 
     try:
         response_data, status = admin_service.get_admin(user_id, admin_id)
-        logger.info("get_admin: Informácie admina načítané so statusom %s", status)
+        logger.info("get_admin: Admin information loaded with status %s", status)
     except Exception as e:
-        logger.exception("get_admin: Výnimka pri získavaní admina: %s", e)
+        logger.exception("get_admin: Exception while getting admin: %s", e)
         if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
             return jsonify({'error': 'Internal server error'}), 500
         else:
@@ -106,7 +106,7 @@ def get_admin(admin_id):
 @bp.route('/', methods=['GET'])
 @jwt_required()
 def get_admins_page():
-    """Zobrazenie hlavnej stránky adminov (vyžaduje rolu super_admin)."""
+    """Display main admins page (requires super_admin role)."""
     user_id = get_jwt_identity()
     try:
         user_id_int = int(user_id)
@@ -120,5 +120,5 @@ def get_admins_page():
     if status != 200:
         return render_template('error_404.html'), 404
     else:
-        logger.info("Používateľ s id %s pristupuje na stránku adminov", user_id_int)
+        logger.info("User with id %s accessing admins page", user_id_int)
         return render_template("admins.html"), status

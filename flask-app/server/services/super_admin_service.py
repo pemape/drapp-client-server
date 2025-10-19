@@ -7,17 +7,17 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 def create_super_admin() -> None:
-    load_dotenv()  # Načíta environment premenné zo súboru .env
-    # Skontrolujeme, či už existuje admin s user_type="admin"
+    load_dotenv()  # Load environment variables from the .env file
+    # Check if a super admin with user_type="super_admin" already exists
     super_admin = SuperAdminData.query.filter_by(user_type="super_admin").first()
     if super_admin:
-        logger.info("Super_admin už existuje: %s", super_admin.email)
+        logger.info("Super admin already exists: %s", super_admin.email)
         return
 
     email = os.getenv("ADMIN_EMAIL")
     password = os.getenv("ADMIN_PASSWORD")
     if not email or not password:
-        logger.error("ADMIN_EMAIL alebo ADMIN_PASSWORD nie sú nastavené v environment variables.")
+        logger.error("ADMIN_EMAIL or ADMIN_PASSWORD are not set in environment variables.")
         return
 
     new_super_admin = SuperAdminData(
@@ -29,7 +29,7 @@ def create_super_admin() -> None:
     try:
         db.session.add(new_super_admin)
         db.session.commit()
-        logger.info("Admin úspešne vytvorený s emailom: %s", email)
+        logger.info("Super admin successfully created with email: %s", email)
     except Exception as e:
-        logger.exception("Nepodarilo sa vytvoriť admina: %s", e)
+        logger.exception("Failed to create super admin: %s", e)
         db.session.rollback()

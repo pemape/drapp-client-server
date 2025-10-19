@@ -6,9 +6,10 @@ import os
 from werkzeug.utils import secure_filename
 from server.models.messages_images_data import MessageImage
 from pathlib import Path
+from server.config import Config
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  # make sure DEBUG logs are shown
+# Removed hardcoded setLevel - now uses configurable LOG_LEVEL from environment
 
 UPLOAD_FOLDER = "uploads/message_images"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)

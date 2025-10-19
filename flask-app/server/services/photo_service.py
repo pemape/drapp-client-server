@@ -11,19 +11,17 @@ from server.models.original_image_data import OriginalImageData
 from server.models.user import User
 from server.models.patient_data import PatientData
 from server.models.device_data import DeviceData
-from server.models.processed_image_data import ProcessedImageData
+from server.models.processed_image_data import ProcessedImageData, ProcessingStatus
 import logging
 from server.config import Config
 from pathlib import Path
-
 from server.services.methods_service import MethodsService
 
 logger = logging.getLogger(__name__)
 methods_service = MethodsService()
 
-
 class PhotoService:
-    def __init__(self, base_upload_path=Config.UPLOAD_FOLDER):
+    def __init__(self, base_upload_path=Config.UPLOAD_FOLDER):      
         self.base_upload_path = os.path.abspath(base_upload_path)
 
     def _create_user_directory(self, user_id):
@@ -79,11 +77,9 @@ class PhotoService:
         # Ensure the user directory exists with the new structure
         user_dir = self._create_user_directory(user_id)
 
-
         # Choose the appropriate subfolder
         subfolder = "processed" if is_processed else "original"
         target_dir = os.path.join(user_dir, subfolder)
-
 
         # Generate a unique filename
         original_filename = secure_filename(file_storage.filename)
@@ -137,8 +133,6 @@ class PhotoService:
                 device_type,
                 secure_filename(photo_file.filename)
             )
-
-
 
             abs_file_path = os.path.join(original_dir, filename)
 
@@ -365,13 +359,11 @@ class PhotoService:
             if not method:
                 return False, 404, "Method not found"
             method_parameters = method.parameters
-            # if not method_parameters:
-            #     return False, 404, "Method parameters not found"
 
             # Create a new ProcessedImageData instance
             processed_photo = ProcessedImageData(
                 created_at=datetime.now(),
-                status="Čaká na spracovanie",
+                status=ProcessingStatus.PENDING.value,
                 process_type=method_name,
                 original_image_id=photo_id,
             )
@@ -403,8 +395,6 @@ class PhotoService:
                 "recieving_endpoint": Config.RECIEVING_ENDPOINT
             }
 
-            # print(f"Payload: {payload}")
-
             print(f"Sending image to processing: {photo.original_image_path}")
 
             # Send the image to the processing service with a timeout
@@ -417,7 +407,7 @@ class PhotoService:
                 if response.status_code != 200:
                     print(f"Failed to send image to processing: {response.status_code}")
                     # Update the status to indicate the error
-                    processed_photo.status = "Chyba spracovania"
+                    processed_photo.set_status(ProcessingStatus.ERROR)
                     db.session.commit()
                     return False, 500, f"Failed to send image to processing: {response.status_code}"
                 else:
@@ -425,13 +415,12 @@ class PhotoService:
                     return True, 200, "Image sent to processing successfully"
             except requests.exceptions.RequestException as e:
                 logger.error(f"Network error sending image to processing: {str(e)}")
-                processed_photo.status = "Chyba spracovania"
+                processed_photo.set_status(ProcessingStatus.ERROR)
                 db.session.commit()
                 return False, 500, f"Network error sending image to processing: {str(e)}"
         except Exception as e:
             logger.error(f"Error sending image to processing: {str(e)}")
             return False, 500, f"Error sending image to processing: {str(e)}"
-
 
     def process_received_data(self, status, answer, file_id, file_data, file_extension, processed_at=None,
                               created_at=None):
@@ -486,7 +475,7 @@ class PhotoService:
                 return False, f"Error saving image file: {str(e)}"
 
             # Update the processed image with the received data
-            processed_image.status = "Spracované"
+            processed_image.set_status(ProcessingStatus.COMPLETED)
             processed_image.answer = answer
             processed_image.processed_image_path = abs_file_path  # Store absolute path
 
@@ -502,9 +491,6 @@ class PhotoService:
                 except (ValueError, TypeError):
                     # If parsing fails, keep the existing created_at
                     pass
-
-            # Note: We're not storing processed_image_extension in the model anymore
-            # The extension is now included in the filename
 
             logger.info(f"Saving processed image with absolute path: {abs_file_path}")
 

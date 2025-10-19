@@ -1,30 +1,48 @@
 import logging
 from datetime import date
-
+import datetime
 from server.database import db
 from server.models.admin_data import AdminData
 from server.models.user import User
 from server.models.doctor_data import DoctorData
 from server.models.patient_data import PatientData
+
 logger = logging.getLogger(__name__)
 
 class PatientsService:
     @staticmethod
     def register_patient(data):
-        logger.info("Začiatok registrácie pacienta")
+        logger.info("Patient registration started")
         try:
             first_name = data.get('first_name')
             last_name = data.get('last_name')
             phone_number = data.get('phone_number')
-            birth_date = data.get('birth_date')
+            birth_date_str  = data.get('birth_date')
             birth_number = data.get('birth_number')
             gender = data.get('gender')
             email = data.get('email')
             password = data.get('password')
 
             if not all([first_name, last_name, birth_number, email, password]):
-                logger.error("Chýbajú povinné údeje pri registrácii pacienta")
+                logger.error("Missing required fields during patient registration")
                 return {'error': 'Missing required fields'}, 400
+
+            # --- DATE CONVERSION STARTS HERE ---
+                    
+            # 2. CONVERT STRING TO datetime.date OBJECT
+            if birth_date_str:
+                try:
+                    # Assuming the format is 'YYYY-MM-DD' as seen in your error message
+                    date_object = datetime.datetime.strptime(birth_date_str, '%Y-%m-%d').date()
+                    birth_date = date_object # Use this converted object for the PatientData
+                except ValueError:
+                    # Handle cases where the date string is malformed
+                    logger.error("Error converting birth date: invalid format")
+                    return {'error': 'Invalid birth date format. Use YYYY-MM-DD.'}, 400
+            else:
+                birth_date = None # Set to None if it's an optional field
+                
+            # --- DATE CONVERSION ENDS HERE ---
 
             new_patient = PatientData(
                 first_name=first_name,
@@ -36,18 +54,18 @@ class PatientsService:
                 gender=gender,
             )
             if (len(new_patient.validate_password(password)) > 0):
-                logger.error("Registrácia pacienta zlyhala: %s", new_patient.validate_password(password))
+                logger.error("Patient registration failed: %s", new_patient.validate_password(password))
                 return {"error": new_patient.validate_password(password)}, 400
             new_patient.set_password(password)
             db.session.add(new_patient)
             db.session.commit()
 
-            logger.info("Pacient %s %s bol úspešne zaregistrovaný", first_name, last_name)
+            logger.info("Patient %s %s was successfully registered", first_name, last_name)
             return {'message': 'User registered successfully'}, 201
 
         except Exception as e:
             db.session.rollback()
-            logger.exception("Výnimka pri registrácii pacienta: %s", e)
+            logger.exception("Exception during patient registration: %s", e)
             return {'error': str(e)}, 500
 
     def get_patients(self, user_id: int):
@@ -79,8 +97,6 @@ class PatientsService:
                 patients = doctor.patients
         else:
             return {'error': 'Unauthorized'}, 403
-
-
 
         result = []
         for patient in patients:
@@ -174,7 +190,7 @@ class PatientsService:
                 doctor_id=doctor_id
             )
             if (len(new_patient.validate_password(password)) > 0):
-                logger.error("Registrácia pacienta zlyhala: %s", new_patient.validate_password(password))
+                logger.error("Patient registration failed: %s", new_patient.validate_password(password))
                 return {"error": new_patient.validate_password(password)}, 400
             new_patient.set_password(password)
             db.session.add(new_patient)
@@ -261,7 +277,7 @@ class PatientsService:
             password = data.get("password", "")
             if password != "":
                 if (len(patient.validate_password(password)) > 0):
-                    logger.error("Uprava pacienta zlyhala: %s", patient.validate_password(password))
+                    logger.error("Patient update failed: %s", patient.validate_password(password))
                     return {"error": patient.validate_password(password)}, 400
                 patient.set_password(password)
             if user.user_type != 'technician':
@@ -287,55 +303,65 @@ class PatientsService:
     def assign_patient(self, user_id: int, data):
         try:
             user = User.query.get(user_id)
-            logger.info(f"user_type = {user.user_type} ({type(user.user_type)})")
+            logger.info("user_type = %s (%s)", user.user_type, type(user.user_type))
 
             if user.user_type not in ['super_admin', 'admin', 'doctor']:
-                return {'error': 'Neautorizovaný prístup.'}, 403
+                logger.error("Unauthorized access.")
+                return {'error': 'Unauthorized access.'}, 403
 
             patient_id = data.get('id')
             if not patient_id:
-                return {'error': 'Chýba priradenia id.'}, 400
+                logger.error("Missing assignment id.")
+                return {'error': 'Missing assignment id.'}, 400
 
             patient = PatientData.query.get(patient_id)
             if not patient:
-                return {'error': 'Pacient nebol nájdený.'}, 404
+                logger.error("Patient not found.")
+                return {'error': 'Patient not found.'}, 404
 
             if patient.doctor_id is not None:
-                return {'error': 'Pacient už má priradeného doktora.'}, 400
+                logger.error("Patient already has an assigned doctor.")
+                return {'error': 'Patient already has an assigned doctor.'}, 400
 
             if user.user_type == 'super_admin':
                 doctor = DoctorData.query.get(data.get('doctor_id'))
                 if not doctor:
-                    return {'error': 'Doktor nebol nájdený.'}, 404
+                    logger.error("Doctor not found.")
+                    return {'error': 'Doctor not found.'}, 404
                 patient.doctor_id = doctor.id
 
             elif user.user_type == 'admin':
                 admin = AdminData.query.get(user_id)
                 if not admin or not admin.hospital:
-                    return {'error': 'Nemocnica správcu nebola nájdená.'}, 404
+                    logger.error("Admin hospital not found.")
+                    return {'error': 'Admin hospital not found.'}, 404
 
                 doctor = DoctorData.query.get(data.get('doctor_id'))
                 if not doctor:
-                    return {'error': 'Doktor nebol nájdený.'}, 404
+                    logger.error("Doctor not found.")
+                    return {'error': 'Doctor not found.'}, 404
 
                 if not doctor.hospital or doctor.hospital.id != admin.hospital.id:
-                    return {'error': 'Doktor nepatrí do vašej nemocnice.'}, 403
+                    logger.error("Doctor does not belong to your hospital.")
+                    return {'error': 'Doctor does not belong to your hospital.'}, 403
 
                 patient.doctor_id = doctor.id
 
             elif user.user_type == 'doctor':
                 doctor = DoctorData.query.get(user_id)
                 if not doctor:
-                    return {'error': 'Doktor nebol nájdený.'}, 404
+                    logger.error("Doctor not found.")
+                    return {'error': 'Doctor not found.'}, 404
                 patient.doctor_id = doctor.id
 
             db.session.commit()
-            return {'message': 'Pacient bol úspešne priradený k doktorovi.'}, 200
+            logger.info("Patient was successfully assigned to a doctor.")
+            return {'message': 'Patient was successfully assigned to a doctor.'}, 200
 
         except Exception as e:
             db.session.rollback()
-            logger.exception("Chyba pri priraďovaní pacienta: %s", e)
-            return {'error': 'Interná chyba servera.'}, 500
+            logger.exception("Error assigning patient: %s", e)
+            return {'error': 'Internal server error.'}, 500
 
     def calculate_birth_date_and_gender(self, birth_number: str):
         """

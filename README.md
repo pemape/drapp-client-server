@@ -34,3 +34,331 @@ Cieľom aplikácie je:
 - **Frontend:** HTML, CSS, JavaScript
 - **Algoritmy:** Preddefinované algoritmy pre klasifikáciu, segmentáciu a detekciu obrazov
 
+---
+
+## 🚀 Developer Setup Guide
+
+### Prerequisites
+
+Pred začatím práce na projekte sa uistite, že máte nainštalované:
+
+1. **Python 3.8+** - [Download Python](https://www.python.org/downloads/)
+2. **PostgreSQL** - [Download PostgreSQL](https://www.postgresql.org/download/)
+3. **Git** - [Download Git](https://git-scm.com/downloads)
+4. **Make** (pre Windows: [Make for Windows](http://gnuwin32.sourceforge.net/packages/make.htm) alebo použite WSL)
+
+### 🔧 Quick Setup (Recommended)
+
+Pre rýchle nastavenie vývojového prostredia:
+
+```bash
+# 1. Klonujte repozitár
+git clone <repository-url>
+cd TP2025_Server-Client_app/flask-app
+
+# 2. Spustite kompletné nastavenie
+make setup-dev
+
+# 3. Aktivujte virtuálne prostredie
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# 4. Nastavte databázu
+make init-db
+
+# 5. Spustite aplikáciu a mock server
+make both-servers
+```
+
+### 📋 Manual Setup
+
+Ak preferujete manuálne nastavenie:
+
+#### 1. Virtual Environment
+
+```bash
+# Vytvorte virtuálne prostredie
+python -m venv venv
+
+# Aktivujte ho
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+```
+
+#### 2. Install Dependencies
+
+```bash
+# Nainštalujte základné závislosti
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Pre development (testing, linting, formatting)
+pip install pytest pytest-cov flake8 black isort pre-commit
+```
+
+#### 3. Environment Configuration
+
+Vytvorte `.env` súbor v `flask-app/` adresári (používajte `env_example` ako šablónu):
+
+```env
+# Database Configuration
+DATABASE_URL=postgresql://username:password@localhost/retinal_db
+SQLALCHEMY_DATABASE_URI=postgresql://username:password@localhost/retinal_db
+
+# Flask Configuration
+FLASK_ENV=development
+FLASK_DEBUG=1
+SECRET_KEY=your-secret-key-here
+
+# Port Configuration (configurable)
+FLASK_PORT=8080          # Default: 8080 - Flask application port
+MOCK_API_PORT=5000       # Default: 5000 - Mock inference server port
+
+# Mock API Configuration
+MOCK_API_URL=http://localhost:5000
+```
+
+**Port Configuration:**
+- `FLASK_PORT` - Port pre Flask aplikáciu (predvolene: 8080)
+- `MOCK_API_PORT` - Port pre mock inference server (predvolene: 5000)
+- Porty sú plne konfigurovateľné cez environment premenné
+
+#### 4. Database Setup
+
+```bash
+# Inicializujte databázu
+make init-db
+
+# Alebo manuálne:
+python migrate.py db init
+python migrate.py db migrate -m "Initial migration"
+python migrate.py db upgrade
+```
+
+### 🏃 Running the Application
+
+#### Development Mode
+
+```bash
+# Spustite Flask aplikáciu v development móde
+make dev
+
+# Alebo manuálne:
+set FLASK_ENV=development && set FLASK_DEBUG=1 && python run.py
+```
+
+#### Mock Inference Server
+
+Mock server simuluje AI spracovanie obrazov. Porty sú konfigurovateľné cez environment premenné:
+
+```bash
+# V popredí (foreground) - použije MOCK_API_PORT alebo default 5000
+make mock-server
+
+# V pozadí (background) - použije MOCK_API_PORT alebo default 5000
+make stop-mock-server
+
+# Spustenie oboch serverov naraz (porty sú konfigurovateľné)
+make both-servers
+```
+
+**Príklad s custom portami:**
+```bash
+# Nastavte custom porty
+export FLASK_PORT=3000
+export MOCK_API_PORT=4000
+
+# Spustite servery s custom portami
+make both-servers  # Flask: 3000, Mock: 4000
+```
+
+### 🧪 Testing
+
+```bash
+# Spustite testy
+make test
+
+# Alebo manuálne:
+pytest tests/ -v --cov=server --cov-report=html --cov-report=term
+```
+
+### 📁 Project Structure
+
+```
+flask-app/
+├── server/                 # Flask backend
+│   ├── models/            # Database models
+│   ├── routes/            # API routes
+│   ├── services/          # Business logic
+│   └── utils/             # Utilities
+├── client/                # Frontend files
+├── tests/                 # Test files
+├── migrations/            # Database migrations
+├── uploads/               # File uploads
+├── requirements.txt       # Python dependencies
+├── Makefile              # Development commands
+└── run.py                # Application entry point
+mock_api.py               # Mock inference server (root level)
+```
+
+### 🛠️ Available Make Commands
+
+Pre zobrazenie všetkých dostupných príkazov:
+
+```bash
+make help
+```
+
+**Najdôležitejšie príkazy:**
+
+- `make setup-dev` - Kompletné nastavenie development prostredia
+- `make both-servers` - Spustenie Flask app + mock servera (porty konfigurovateľné cez env)
+- `make dev` - Development režim Flask aplikácie (port konfigurovateľný cez FLASK_PORT)
+- `make mock-server` - Spustenie mock servera (port konfigurovateľný cez MOCK_API_PORT)
+- `make health-check` - Kontrola stavu Flask aplikácie
+- `make health-check-mock` - Kontrola stavu mock servera
+- `make test` - Spustenie testov
+- `make clean` - Vyčistenie dočasných súborov
+- `make migrate msg="description"` - Vytvorenie novej migrácie
+- `make upgrade` - Aplikovanie migrácií
+
+### 🔍 Common Issues & Solutions
+
+#### 1. Database Connection Issues
+
+```bash
+# Overte, že PostgreSQL beží
+# Windows: services.msc -> PostgreSQL
+# Linux: sudo systemctl status postgresql
+
+# Vytvorte databázu ak neexistuje
+createdb retinal_db
+```
+
+#### 2. Port Already in Use
+
+```bash
+# Kontrola portov (použijú sa konfigurovateľné porty z env)
+netstat -ano | findstr :8080  # Flask default port
+netstat -ano | findstr :5000  # Mock server default port
+
+# Alebo použite make príkazy pre health check
+make health-check      # Kontrola Flask app
+make health-check-mock # Kontrola mock server
+
+# Zastavte proces alebo zmeňte port v .env súbore
+```
+
+#### 3. Virtual Environment Issues
+
+```bash
+# Odstráňte a vytvorte znovu
+rm -rf venv  # Linux/Mac
+rmdir /s venv  # Windows
+make venv
+```
+
+### 📝 Development Workflow
+
+1. **Vytvorte nový branch** pre vašu funkcionalitu
+2. **Aktivujte virtual environment**
+3. **Spustite testy** pred začatím práce: `make test`
+4. **Implementujte zmeny**
+5. **Formátujte kód**: `make format`
+6. **Spustite linting**: `make lint`
+7. **Spustite testy**: `make test`
+8. **Vytvorte commit a push**
+
+### 🚀 Production Deployment
+
+```bash
+# Production setup
+make prod-setup
+
+# Alebo manuálne:
+pip install -r requirements.txt
+python migrate.py db upgrade
+python run.py
+```
+
+### 🔧 Environment Variables
+
+**Port Configuration:**
+```bash
+FLASK_PORT=8080        # Flask application port (default: 8080)
+MOCK_API_PORT=5000     # Mock inference server port (default: 5000)
+```
+
+**Logging Configuration:**
+```bash
+LOG_LEVEL=INFO         # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL, TRACE (default: INFO)
+LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s  # Log format
+LOG_FILE=app.log       # Log file path (default: app.log)
+```
+
+**Database Configuration:**
+```bash
+DATABASE_URL=postgresql://username:password@localhost/retinal_db
+SQLALCHEMY_DATABASE_URI=postgresql://username:password@localhost/retinal_db
+```
+
+**Security Configuration:**
+```bash
+SECRET_KEY=your-secret-key-here
+JWT_SECRET_KEY=your-jwt-secret-key-here
+```
+
+### 📊 Logging Features
+
+Aplikácia podporuje konfigurovateľné úrovne logovania cez environment premennú `LOG_LEVEL`:
+
+**Dostupné úrovne logovania:**
+- `TRACE` - Najdetailnejšie logování (custom level)
+- `DEBUG` - Debugging informácie, SQL queries
+- `INFO` - Základné informácie o behu aplikácie (default)
+- `WARNING` - Varovania
+- `ERROR` - Chyby
+- `CRITICAL` - Kritické chyby
+
+**Príklady použitia:**
+```bash
+# Development s detailným logovaním
+export LOG_LEVEL=DEBUG
+make dev
+
+# Production s minimálnym logovaním
+export LOG_LEVEL=WARNING
+make run
+
+# Trace level pre debugging
+export LOG_LEVEL=TRACE
+LOG_FILE=logs/debug.log make both-servers
+```
+
+**Konfigurácia log súboru:**
+```bash
+# Základný log súbor
+LOG_FILE=app.log
+
+# Log súbor v adresári
+LOG_FILE=logs/retinal_app.log
+
+# Oddelené log súbory pre komponenty
+LOG_FILE=logs/flask_$(date +%Y%m%d).log
+```
+
+**Log výstup:**
+- **Console** - Všetky log správy sa zobrazujú v konzole
+- **File** - Všetky log správy sa ukladajú do súboru (default: `app.log`)
+- **SQL Queries** - V DEBUG/TRACE móde sa zobrazujú SQL dotazy
+
+### 📞 Support
+
+Pre otázky a problémy:
+- Vytvorte issue v GitHub repozitári
+- Kontaktujte vývojový tím
+

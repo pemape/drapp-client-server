@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 class DoctorsService:
     def assign_patient_to_doctor(self, doctor_id, patient_id):
+        logger.info("Method assign_patient_to_doctor started")
         """Priradenie pacienta k lekárovi"""
         doctor = DoctorData.query.filter_by(doctor_id=doctor_id).first()
         patient = PatientData.query.filter_by(patient_id=patient_id).first()
@@ -25,6 +26,7 @@ class DoctorsService:
         return {'message': 'Patient assigned to doctor'}, 200
 
     def remove_patient_from_doctor(self, doctor_id, patient_id):
+        logger.info("Method remove_patient_from_doctor started")
         """Odstránenie pacienta od lekára"""
         patient = PatientData.query.filter_by(patient_id=patient_id, doctor_id=doctor_id).first()
 
@@ -37,6 +39,7 @@ class DoctorsService:
         return {'message': 'Patient removed from doctor'}, 200
 
     def transfer_patient_to_other_doctor(self, doctor_id, patient_id, new_doctor_id):
+        logger.info("Method transfer_patient_to_other_doctor started")
         """Premiestnenie pacienta k inému lekárovi"""
         patient = PatientData.query.filter_by(patient_id=patient_id, doctor_id=doctor_id).first()
         new_doctor = DoctorData.query.filter_by(doctor_id=new_doctor_id).first()
@@ -52,6 +55,7 @@ class DoctorsService:
         return {'message': 'Patient transferred to new doctor'}, 200
 
     def get_doctor_patients(self, doctor_id):
+        logger.info("Method get_doctor_patients started")
         """Získanie zoznamu pacientov lekára"""
         doctor = DoctorData.query.filter_by(doctor_id=doctor_id).first()
         if not doctor:
@@ -66,6 +70,7 @@ class DoctorsService:
         ], 200
 
     def update_doctor_info(self, doctor_id, data):
+        logger.info("Method update_doctor_info started")
         """Aktualizácia údajov o lekárovi"""
         doctor = DoctorData.query.filter_by(doctor_id=doctor_id).first()
         if not doctor:
@@ -78,6 +83,7 @@ class DoctorsService:
         return {'message': 'Doctor info updated'}, 200
 
     def change_hospital(self, doctor_id, hospital_code):
+        logger.info("Method change_hospital started")
         """Zmena nemocnice lekára"""
         doctor = DoctorData.query.filter_by(doctor_id=doctor_id).first()
         hospital = Hospital.query.filter_by(code=hospital_code).first()
@@ -93,6 +99,7 @@ class DoctorsService:
         return {'message': 'Hospital changed successfully'}, 200
 
     def get_patient_details(self, doctor_id, patient_id):
+        logger.info("Method get_patient_details started")
         """Získanie informácií o pacientovi a jeho fotiek (len ak je to pacient doktora)"""
         doctor = DoctorData.query.filter_by(doctor_id=doctor_id).first()
         patient_data = PatientData.query.filter_by(patient_id=patient_id, doctor_id=doctor.id).first()
@@ -125,6 +132,7 @@ class DoctorsService:
 
     @staticmethod
     def register_doctor(data):
+        logger.info("Doctor registration started")
         try:
             first_name = data.get('first_name')
             last_name = data.get('last_name')
@@ -185,19 +193,18 @@ class DoctorsService:
             return {'error': str(e)}, 500
 
     def add_doctor(self, user_id: int, data):
-        logger.info("Spustená metóda add_doctor")
+        logger.info("Method add_doctor started")
         user = User.query.get(int(user_id))
         if user.is_super_admin():
             hospital_code = data.get("hospital_code")
             doctor_role = data.get("role")
         elif user.is_admin():
             hospital_code = AdminData.query.filter_by(id =user_id).first().hospital.hospital_code
-            logger.info(f"Hospital kode: {hospital_code}")
+            logger.info(f"Hospital code: {hospital_code}")
             doctor_role = "doctor"
         else:
-            error_message = f"Add doctor: Používateľ s id {user_id} nie je admin ani super_admin (user_type={user.user_type})"
-            logger.error(error_message)
-            return {"error": error_message}, 400
+            logger.error("Add doctor: User with id %s is neither admin nor super_admin (user_type=%s)", user_id, user.user_type)
+            return {"error": f"Add doctor: User with id {user_id} is neither admin nor super_admin (user_type={user.user_type})"}, 400
 
         title = data.get("title", "")
         suffix = data.get("suffix", "")
@@ -213,17 +220,17 @@ class DoctorsService:
 
 
         if User.query.filter_by(email=email).first():
-            logger.error("Registrácia zlyhala: Email %s už existuje", email)
+            logger.error("Registration failed: Email %s already exists", email)
             return {'error': 'Email already exists'}, 400
 
         if not all([first_name, last_name, doctor_role, hospital_code, email, password]):
-            logger.error("Chýbajú povinné údaje (vrátane emailu/hesla)")
-            return {"error": "Chýbajú povinné údaje vrátane emailu a hesla"}, 400
+            logger.error("Missing required fields (including email/password)")
+            return {"error": "Missing required fields including email and password"}, 400
 
         hospital = Hospital.query.filter_by(hospital_code=hospital_code).first()
         if not hospital:
-            logger.error("Nemocnica s kódom '%s' neexistuje", hospital_code)
-            return {"error": "Neexistujúca nemocnica s týmto kódom"}, 404
+            logger.error("Hospital with code '%s' does not exist", hospital_code)
+            return {"error": "Nonexistent hospital with this code"}, 404
 
         try:
             new_doctor = DoctorData(
@@ -241,23 +248,23 @@ class DoctorsService:
             elif doctor_role == "doctor":
                 new_doctor.set_super_doctor(False)
             else:
-                logger.warning("Neexistujúca rola s nazvom '%s'", doctor_role)
-                return {"error": "Neexistujúca rola"}, 404
+                logger.warning("Nonexistent role with name '%s'", doctor_role)
+                return {"error": "Nonexistent role"}, 404
             if (len(new_doctor.validate_password(password)) > 0):
-                logger.error("Registrácia doktora zlyhala: %s", new_doctor.validate_password(password))
+                logger.error("Doctor registration failed: %s", new_doctor.validate_password(password))
                 return {"error": new_doctor.validate_password(password)}, 400
             new_doctor.set_password(password)
             db.session.add(new_doctor)
             db.session.commit()
-            logger.info("Doktor '%s %s' bol úspešne pridaný", first_name, last_name)
-            return {"message": "Doktor bol úspešne pridaný."}, 201
+            logger.info("Doctor '%s %s' was successfully added", first_name, last_name)
+            return {"message": "Doctor was successfully added."}, 201
         except Exception as e:
-            logger.exception("Výnimka pri pridávaní doktora: %s", e)
+            logger.exception("Exception while adding doctor: %s", e)
             db.session.rollback()
-            return {"error": "Interná chyba servera"}, 500
+            return {"error": "Internal server error"}, 500
 
     def update_doctor(self, user_id: int, doctor_id: int, data):
-        logger.info("Spustená metóda update_doctor pre doctor_id: %s", doctor_id)
+        logger.info("Method update_doctor started for doctor_id: %s", doctor_id)
         try:
             user = User.query.get(int(user_id))
             doctor = None
@@ -266,17 +273,15 @@ class DoctorsService:
             elif user.is_admin():
                 doctor = DoctorData.query.get(doctor_id)
                 if user.hospital.hospital_code != doctor.hospital.hospital_code:
-                    error_message = f"Používateľ s id {user_id} nema pristup k doctor_id {doctor_id}"
-                    logger.error(error_message)
-                    return {"error": error_message}, 400
+                    logger.error("User with id %s does not have access to doctor_id %s", user_id, doctor_id)
+                    return {"error": f"User with id {user_id} does not have access to doctor_id {doctor_id}"}, 400
             else:
-                error_message = f"Používateľ s id {user_id} nie je admin ani super_admin (user_type={user.user_type})"
-                logger.error(error_message)
-                return {"error": error_message}, 400
+                logger.error("User with id %s is neither admin nor super_admin (user_type=%s)", user_id, user.user_type)
+                return {"error": f"User with id {user_id} is neither admin nor super_admin (user_type={user.user_type})"}, 400
 
             if not doctor:
-                logger.warning("Doktor s id %s neexistuje", doctor_id)
-                return {"error": "Doktor neexistuje"}, 404
+                logger.warning("Doctor with id %s does not exist", doctor_id)
+                return {"error": "Doctor does not exist"}, 404
 
             doctor.first_name = data.get("first_name", doctor.first_name)
             doctor.last_name = data.get("last_name", doctor.last_name)
@@ -289,7 +294,7 @@ class DoctorsService:
             password = data.get("password", "")
             if password != "":
                 if (len(doctor.validate_password(password)) > 0):
-                    logger.error("Uprava doktora zlyhala: %s", doctor.validate_password(password))
+                    logger.error("Doctor update failed: %s", doctor.validate_password(password))
                     return {"error": doctor.validate_password(password)}, 400
                 doctor.set_password(password)
 
@@ -299,8 +304,8 @@ class DoctorsService:
                     if hospital_code:
                         hospital = Hospital.query.filter_by(hospital_code=hospital_code).first()
                         if not hospital:
-                            logger.warning("Neexistujúca nemocnica s kódom '%s'", hospital_code)
-                            return {"error": "Neexistujúca nemocnica"}, 404
+                            logger.warning("Nonexistent hospital with code '%s'", hospital_code)
+                            return {"error": "Nonexistent hospital"}, 404
                         doctor.hospital_id = hospital.id
                 doctor_role = data.get("role")
                 if doctor_role == "super_doctor":
@@ -308,19 +313,19 @@ class DoctorsService:
                 elif doctor_role == "doctor":
                     doctor.set_super_doctor(False)
                 else:
-                    logger.warning("Neexistujúca rola s nazvom '%s'", doctor_role)
-                    return {"error": "Neexistujúca rola"}, 404
+                    logger.warning("Nonexistent role with name '%s'", doctor_role)
+                    return {"error": "Nonexistent role"}, 404
 
             db.session.commit()
-            logger.info("Doktor s id %s bol aktualizovaný", doctor_id)
-            return {"message": "Doktor aktualizovaný"}, 200
+            logger.info("Doctor with id %s was updated", doctor_id)
+            return {"message": "Doctor updated"}, 200
         except Exception as e:
-            logger.exception("Výnimka pri aktualizácii doktora: %s", e)
+            logger.exception("Exception while updating doctor: %s", e)
             db.session.rollback()
-            return {"error": "Interná chyba servera"}, 500
+            return {"error": "Internal server error"}, 500
 
     def get_doctors(self, user_id: int):
-        logger.info("Spustená metóda get_doctors")
+        logger.info("Method get_doctors started")
         try:
             user = User.query.get(int(user_id))
             if user.is_super_admin():
@@ -329,9 +334,8 @@ class DoctorsService:
                 hospital_id = user.hospital_id
                 doctors = DoctorData.query.filter_by(hospital_id=hospital_id).all()
             else:
-                error_message = f"Používateľ s id {user_id} nie je admin ani super_admin (user_type={user.user_type})"
-                logger.error(error_message)
-                return {"error": error_message}, 400
+                logger.error("User with id %s is neither admin nor super_admin (user_type=%s)", user_id, user.user_type)
+                return {"error": f"User with id {user_id} is neither admin nor super_admin (user_type={user.user_type})"}, 400
 
             doctors_data = []
             for d in doctors:
@@ -358,11 +362,11 @@ class DoctorsService:
 
             return doctors_data, 200
         except Exception as e:
-            logger.exception("Chyba pri získavaní doktorov: %s", e)
-            return {"error": "Interná chyba servera"}, 500
+            logger.exception("Error while retrieving doctors: %s", e)
+            return {"error": "Internal server error"}, 500
 
     def get_doctor(self, user_id: int, doctor_id: int):
-        logger.info("Spustená metóda get_doctor pre doctor_id: %s", doctor_id)
+        logger.info("Method get_doctor started for doctor_id: %s", doctor_id)
         user = User.query.get(int(user_id))
         doctor = None
         if user.is_super_admin():
@@ -370,17 +374,15 @@ class DoctorsService:
         elif user.is_admin():
             doctor = DoctorData.query.get(doctor_id)
             if user.hospital.hospital_code != doctor.hospital.hospital_code:
-                error_message = f"Používateľ s id {user_id} nema pristup k doctor_id {doctor_id}"
-                logger.error(error_message)
-                return {"error": error_message}, 400
+                logger.error("User with id %s does not have access to doctor_id %s", user_id, doctor_id)
+                return {"error": f"User with id {user_id} does not have access to doctor_id {doctor_id}"}, 400
         else:
-            error_message = f"Používateľ s id {user_id} nie je admin ani super_admin (user_type={user.user_type})"
-            logger.error(error_message)
-            return {"error": error_message}, 400
+            logger.error("User with id %s is neither admin nor super_admin (user_type=%s)", user_id, user.user_type)
+            return {"error": f"User with id {user_id} is neither admin nor super_admin (user_type={user.user_type})"}, 400
 
         try:
             if not doctor:
-                return {"error": "Doktor neexistuje"}, 404
+                return {"error": "Doctor does not exist"}, 404
             hospital = doctor.hospital
             hospital_info = {
                 "id": hospital.id,
@@ -410,8 +412,8 @@ class DoctorsService:
                 doctor_data.update({"super_doctor": doctor.super_doctor})
             return doctor_data, 200
         except Exception as e:
-            logger.exception("Chyba pri získavaní doktora: %s", e)
-            return {"error": "Interná chyba servera"}, 500
+            logger.exception("Error while retrieving doctor: %s", e)
+            return {"error": "Internal server error"}, 500
 
     def check_user_id(self, user_id: int):
         message, status = User.check_user_type_required(user_id, "super_admin")

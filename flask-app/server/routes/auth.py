@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 @bp.route('/login', methods=['GET'], endpoint='login_get')
 def login_get():
-    """Endpoint pre zobrazenie prihlasovacieho formulára."""
+    """Endpoint to display the login form."""
     logger.info("GET /login endpoint accessed")
     if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
         logger.debug("Returning JSON response for login page")
@@ -31,7 +31,7 @@ def login_get():
 @limiter.limit("5 per 5 minutes", methods=['POST'])
 def login_post():
     """
-    Endpoint na prihlásenie používateľa.
+    Endpoint for user login.
     """
     logger.info("POST /login endpoint accessed")
     if request.is_json:
@@ -49,7 +49,7 @@ def login_post():
         if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
             response = jsonify(result)
         else:
-            flash(result.get('message', 'Prihlásenie prebehlo ��spešne'), 'success')
+            flash(result.get('message', 'Login successful'), 'success')
             response = redirect(url_for('auth.dashboard'))
 
         set_access_cookies(response, result.get('access_token'))
@@ -59,7 +59,7 @@ def login_post():
         if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
             return jsonify(result), status
         else:
-            flash(result.get('error', 'Prihlásenie zlyhalo'), 'error')
+            flash(result.get('error', 'Login failed'), 'error')
             return render_template('login.html'), status
 
 
@@ -77,13 +77,13 @@ def dashboard():
             user_id_int = int(user_id)
         except (ValueError, TypeError):
             logger.error("Invalid user identifier: %s", user_id)
-            flash("Neplatný používateľský identifikátor", "error")
+            flash("Invalid user identifier", "error")
             return render_template('error_400.html'), 400
 
         user = db.session.get(User, user_id_int)
         if not user:
             logger.error("User not found for ID: %d", user_id_int)
-            flash("Používateľ nenájdený", "error")
+            flash("User not found", "error")
             return render_template('error_404.html'), 404
 
         logger.info("Rendering dashboard for user: %s", user.user_type)
@@ -112,7 +112,7 @@ def dashboard_info():
 @bp.route('/logout', methods=['GET'])
 def logout():
     """
-    Endpoint na odhlásenie používateľa.
+    Endpoint for user logout.
     """
     logger.info("GET /logout endpoint accessed")
     response = redirect(url_for('auth.login_get'))

@@ -33,17 +33,17 @@ def send_message():
         logger.info(f"Image {i}: filename={f.filename}")
 
     if len(filtered_images) > 10:
-        return jsonify({"error": "Maximálne 10 obrázkov."}), 400
+        return jsonify({"error": "Maximum 10 images allowed."}), 400
 
     logger.debug("Send message form data: sender=%s, recipient=%s, message length=%d", user_id, recipient_input,
                  len(message or ""))
 
     if not recipient_input or not message:
-        return jsonify({"error": "Príjemca a správa sú povinné polia."}), 400
+        return jsonify({"error": "Recipient and message are required fields."}), 400
 
     sender: User = db.session.get(User, user_id)
     if not sender:
-        return jsonify({"error": "Odosielateľ neexistuje."}), 404
+        return jsonify({"error": "Sender does not exist."}), 404
 
     # Normalize recipient input and find user
     recipient = None
@@ -53,16 +53,16 @@ def send_message():
         recipient = db.session.query(User).filter_by(email=recipient_input.strip()).first()
 
     if not recipient:
-        return jsonify({"error": "Príjemca neexistuje."}), 400
+        return jsonify({"error": "Recipient does not exist."}), 400
 
     if sender.id == recipient.id:
-        return jsonify({"error": "Nemôžete poslať správu sebe samému."}), 400
+        return jsonify({"error": "You cannot send a message to yourself."}), 400
 
     # ===============================
     #     AUTHORIZATION RULES
     # ===============================
 
-    def deny(reason="Nie ste autorizovaný na odoslanie tejto správy."):
+    def deny(reason="You are not authorized to send this message."):
         logger.warning(
             f"Unauthorized message attempt: sender={sender.id} ({sender.user_type}) -> recipient={recipient.id} ({recipient.user_type})")
         return jsonify({"error": reason}), 403
@@ -71,17 +71,17 @@ def send_message():
     r_type = recipient.user_type
 
     if r_type == "super_admin" and s_type != "admin":
-        return deny("Len administrátor môže poslať správu super-administrátorovi.")
+        return deny("Only admin can send message to super-admin.")
     elif r_type == "admin" and s_type not in {"admin", "super_admin", "doctor"}:
-        return deny("Správu administrátorovi môžu posielať len doktori alebo vyšší.")
+        return deny("Only doctors or higher can send messages to admin.")
     elif s_type == "doctor" and r_type == "patient":
         sender_doctor: DoctorData = db.session.get(DoctorData, sender.id)
         if not sender_doctor or not any(p.id == recipient.id for p in sender_doctor.patients):
-            return deny("Môžete poslať správu len svojim pacientom.")
+            return deny("You can only send messages to your patients.")
     elif s_type == "patient" and r_type == "doctor":
         sender_patient: PatientData = db.session.get(PatientData, sender.id)
         if not sender_patient or sender_patient.doctor_id != recipient.id:
-            return deny("Môžete poslať správu len svojmu doktorovi.")
+            return deny("You can only send messages to your doctor.")
 
     try:
         result, status_code = MessageService.send_message({
@@ -95,7 +95,7 @@ def send_message():
 
     except Exception as e:
         logger.exception("send_message: Error")
-        return jsonify({"error": "Interná chyba servera."}), 500
+        return jsonify({"error": "Internal server error."}), 500
 
 
 @bp.route('/list', methods=['GET'])
@@ -139,25 +139,25 @@ def uploaded_file(filename):
 @bp.route('/<int:message_id>', methods=['GET'])
 @jwt_required()
 def get_message(message_id):
-    """Získanie detailu konkrétnej správy."""
-    logger.info("get_message endpoint vyžiadaný pre message_id: %s", message_id)
+    """Get detail of specific message."""
+    logger.info("get_message endpoint requested for message_id: %s", message_id)
     user_id = get_jwt_identity()
 
     try:
         message = db.session.get(MessageData, message_id)
         if not message:
-            return jsonify({"error": "Správa neexistuje"}), 404
+            return jsonify({"error": "Message does not exist"}), 404
 
         # Optional: check if user is authorized to view it
         # if user_id not in [message.sender_id, message.recipient_id]:
-        #    return jsonify({"error": "Nemáte prístup k tejto správe"}), 403
+        #    return jsonify({"error": "You do not have access to this message"}), 403
 
         response_data = message.to_dict()
-        logger.info("get_message: Úspešne načítaná správa %s", message_id)
+        logger.info("get_message: Successfully loaded message %s", message_id)
 
     except Exception as e:
-        logger.exception("get_message: chyba")
-        return jsonify({"error": "Chyba servera"}), 500
+        logger.exception("get_message: error")
+        return jsonify({"error": "Server error"}), 500
 
     if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
         return jsonify(response_data), 200
@@ -173,21 +173,21 @@ def mark_message_as_read(message_id):
 
     message = db.session.get(MessageData, message_id)
     if not message:
-        return jsonify({"error": "Správa neexistuje"}), 404
+        return jsonify({"error": "Message does not exist"}), 404
 
     # only the recipient can mark message as is_read
     if user_id != message.recipient_id:
-        return jsonify({"error": "Nemáte oprávnenie označiť túto správu ako prečítanú."}), 403
+        return jsonify({"error": "You do not have permission to mark this message as read."}), 403
 
     try:
         if not message.is_read:
             message.is_read = True
             db.session.commit()
             logger.info("Message %s marked as read", message_id)
-        return jsonify({"message": "Správa označená ako prečítaná"}), 200
+        return jsonify({"message": "Message marked as read"}), 200
     except Exception as e:
-        logger.exception("Chyba pri označovaní správy ako prečítanej")
-        return jsonify({"error": "Serverová chyba"}), 500
+        logger.exception("Error while marking message as read")
+        return jsonify({"error": "Server error"}), 500
 
 
 @bp.route("/<int:message_id>/toggle_read", methods=["PUT"])
@@ -199,12 +199,12 @@ def toggle_read(message_id):
     try:
         message = db.session.get(MessageData, message_id)
         if not message:
-            return jsonify({"error": "Správa neexistuje"}), 404
+            return jsonify({"error": "Message does not exist"}), 404
 
         # Only recipient can toggle read state
         if user_id != message.recipient_id:
             logger.info(f"User {user_id} is unauthorized to toggle is_read for recipient {message.recipient_id}")
-            return jsonify({"error": "Nemáte oprávnenie meniť stav tejto správy."}), 403
+            return jsonify({"error": "You do not have permission to change this message's status."}), 403
 
         message.is_read = not message.is_read
         db.session.commit()
@@ -213,8 +213,8 @@ def toggle_read(message_id):
         return jsonify({"success": True, "is_read": message.is_read}), 200
 
     except Exception as e:
-        logger.exception("Chyba pri togglovaní správy")
-        return jsonify({"error": "Chyba pri aktualizácii správy"}), 500
+        logger.exception("Error while toggling message")
+        return jsonify({"error": "Error updating message"}), 500
 
 
 @bp.route('/', methods=['GET'])
@@ -242,7 +242,7 @@ def get_spravy_page():
         logger.debug("Status not 200, returning 404 error page")
         return render_template('error_404.html'), 404
     else:
-        logger.info(f"User with id {user_id_int} accessed spravy page")
+        logger.info(f"User with id {user_id_int} accessed messages page")
         return render_template("messages.html"), 200
 
 

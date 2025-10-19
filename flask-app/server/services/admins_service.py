@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class AdminsService:
     def add_admin(self, user_id: int, data):
-        logger.info("Spustená metóda add_admin")
+        logger.info("Method add_admin started")
         message, status = User.check_user_type_required(user_id, "super_admin")
         if status != 200:
             return message, status
@@ -21,19 +21,19 @@ class AdminsService:
 
         email = data.get("email")
         if User.query.filter_by(email=email).first():
-            logger.error("Registrácia zlyhala: Email %s už existuje", email)
+            logger.error("Registration failed: Email %s already exists", email)
             return {'error': 'Email already exists'}, 400
 
         password = data.get("password")
 
         if not all([first_name, last_name, phone_number, gender, hospital_code, email, password]):
-            logger.error("Chýbajú povinné údaje (vrátane emailu/hesla)")
-            return {"error": "Chýbajú povinné údaje vrátane emailu a hesla"}, 400
+            logger.error("Missing required fields (including email/password)")
+            return {"error": "Missing required fields including email and password"}, 400
 
         hospital = Hospital.query.filter_by(hospital_code=hospital_code).first()
         if not hospital:
-            logger.error("Nemocnica s kódom '%s' neexistuje", hospital_code)
-            return {"error": "Neexistujúca nemocnica s týmto kódom"}, 404
+            logger.error("Hospital with code '%s' does not exist", hospital_code)
+            return {"error": "Nonexistent hospital with this code"}, 404
 
         try:
             new_admin = AdminData(
@@ -45,20 +45,20 @@ class AdminsService:
                 hospital_id=hospital.id
             )
             if (len(new_admin.validate_password(password)) > 0):
-                logger.error("Registrácia admin zlyhala: %s", new_admin.validate_password(password))
+                logger.error("Admin registration failed: %s", new_admin.validate_password(password))
                 return {"error": new_admin.validate_password(password)}, 400
             new_admin.set_password(password)
             db.session.add(new_admin)
             db.session.commit()
-            logger.info("Admin '%s %s' bol úspešne pridaný", first_name, last_name)
-            return {"message": "Admin bol úspešne pridaný."}, 201
+            logger.info("Admin '%s %s' was successfully added", first_name, last_name)
+            return {"message": "Admin was successfully added."}, 201
         except Exception as e:
-            logger.exception("Výnimka pri pridávaní admina: %s", e)
+            logger.exception("Exception while adding admin: %s", e)
             db.session.rollback()
-            return {"error": "Interná chyba servera"}, 500
+            return {"error": "Internal server error"}, 500
 
     def update_admin(self, user_id: int, admin_id: int, data):
-        logger.info("Spustená metóda update_admin pre admin_id: %s", admin_id)
+        logger.info("Method update_admin started for admin_id: %s", admin_id)
         message, status = User.check_user_type_required(user_id, "super_admin")
         if status != 200:
             return message, status
@@ -66,8 +66,8 @@ class AdminsService:
         try:
             admin = AdminData.query.get(admin_id)
             if not admin:
-                logger.warning("Admin s id %s neexistuje", admin_id)
-                return {"error": "Admin neexistuje"}, 404
+                logger.warning("Admin with id %s does not exist", admin_id)
+                return {"error": "Admin does not exist"}, 404
 
             admin.first_name = data.get("first_name", admin.first_name)
             admin.last_name = data.get("last_name", admin.last_name)
@@ -78,7 +78,7 @@ class AdminsService:
             password = data.get("password", "")
             if password != "":
                 if (len(admin.validate_password(password)) > 0):
-                    logger.error("Uprava admina zlyhala: %s", admin.validate_password(password))
+                    logger.error("Admin update failed: %s", admin.validate_password(password))
                     return {"error": admin.validate_password(password)}, 400
                 admin.set_password(password)
 
@@ -86,20 +86,20 @@ class AdminsService:
             if hospital_code:
                 hospital = Hospital.query.filter_by(hospital_code=hospital_code).first()
                 if not hospital:
-                    logger.warning("Neexistujúca nemocnica s kódom '%s'", hospital_code)
-                    return {"error": "Neexistujúca nemocnica"}, 404
+                    logger.warning("Nonexistent hospital with code '%s'", hospital_code)
+                    return {"error": "Nonexistent hospital"}, 404
                 admin.hospital_id = hospital.id
             db.session.commit()
-            logger.info("Admin s id %s bol aktualizovaný", admin_id)
-            return {"message": "Admin aktualizovaný"}, 200
+            logger.info("Admin with id %s was updated", admin_id)
+            return {"message": "Admin updated"}, 200
         except Exception as e:
-            logger.exception("Výnimka pri aktualizácii admina: %s", e)
+            logger.exception("Exception while updating admin: %s", e)
             db.session.rollback()
-            return {"error": "Interná chyba servera"}, 500
+            return {"error": "Internal server error"}, 500
 
     def get_admins(self, user_id: int):
-        """Získanie všetkých adminov (iba pre super_admina) s detailmi nemocnice."""
-        logger.info("Spustená metóda get_admins")
+        """Retrieve all admins (only for super_admin) with hospital details."""
+        logger.info("Method get_admins started")
         message, status = User.check_user_type_required(user_id, "super_admin")
         if status != 200:
             return message, status
@@ -127,15 +127,15 @@ class AdminsService:
                     "created_at": a.created_at.isoformat() if a.created_at else None,
                     "hospital": hospital_info
                 })
-            logger.info("Načítaný zoznam adminov: %d", len(admins_data))
+            logger.info("Loaded list of admins: %d", len(admins_data))
             return admins_data, 200
         except Exception as e:
-            logger.exception("Chyba pri načítavaní adminov: %s", e)
-            return {"error": "Interná chyba servera"}, 500
+            logger.exception("Error while loading admins: %s", e)
+            return {"error": "Internal server error"}, 500
 
     def get_admin(self, user_id: int, admin_id: int):
-        """Získanie konkrétneho admina s detailmi nemocnice."""
-        logger.info("Spustená metóda get_admin pre admin_id: %s", admin_id)
+        """Retrieve a specific admin with hospital details."""
+        logger.info("Method get_admin started for admin_id: %s", admin_id)
         message, status = User.check_user_type_required(user_id, "super_admin")
         if status != 200:
             return message, status
@@ -143,7 +143,7 @@ class AdminsService:
         try:
             admin = AdminData.query.get(admin_id)
             if not admin:
-                return {"error": "Admin neexistuje"}, 404
+                return {"error": "Admin does not exist"}, 404
 
             hospital = admin.hospital
             hospital_info = {
@@ -165,12 +165,12 @@ class AdminsService:
                 "created_at": admin.created_at.isoformat() if admin.created_at else None,
                 "hospital": hospital_info
             }
-            logger.info("Admin načítaný: %s %s", admin.first_name, admin.last_name)
+            logger.info("Admin loaded: %s %s", admin.first_name, admin.last_name)
             return admin_data, 200
         except Exception as e:
-            logger.exception("Chyba pri získavaní admina: %s", e)
-            return {"error": "Interná chyba servera"}, 500
+            logger.exception("Error while retrieving admin: %s", e)
+            return {"error": "Internal server error"}, 500
 
     def check_user_id(self, user_id: int):
-        """Overenie, či používateľ má oprávnenie super_admin."""
+        """Verify if the user has super_admin privileges."""
         return User.check_user_type_required(user_id, "super_admin")

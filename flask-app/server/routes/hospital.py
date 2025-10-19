@@ -11,23 +11,23 @@ logger = logging.getLogger(__name__)
 @bp.route('/add', methods=['POST'])
 @jwt_required()
 def add_hospital():
-    """Pridanie nemocnice (len pre super_admina)."""
-    logger.info("add_hospital endpoint vyžiadaný")
+    """Add hospital (only for super_admin)."""
+    logger.info("add_hospital endpoint requested")
     user_id = get_jwt_identity()
 
-    # Tento endpoint vyžaduje JSON vstup aj JSON odpoveď.
+    # This endpoint requires JSON input and JSON response.
     if not (request.is_json and request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']):
-        logger.error("add_hospital: Neplatný vstup alebo Accept header")
+        logger.error("add_hospital: Invalid input or Accept header")
         return jsonify({'error': 'Invalid input or only JSON responses supported'}), 406
 
     data = request.get_json()
-    logger.debug("add_hospital: Prijaté dáta, keys: %s", list(data.keys()))
+    logger.debug("add_hospital: Received data, keys: %s", list(data.keys()))
 
     try:
         response_data, status = hospital_service.add_hospital(user_id, data)
-        logger.info("add_hospital: Nemocnica pridaná so statusom %s", status)
+        logger.info("add_hospital: Hospital added with status %s", status)
     except Exception as e:
-        logger.exception("add_hospital: Výnimka pri pridávaní nemocnice: %s", e)
+        logger.exception("add_hospital: Exception while adding hospital: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
 
     return jsonify(response_data), status
@@ -36,21 +36,21 @@ def add_hospital():
 @bp.route('/update/<int:hospital_id>', methods=['PUT'])
 @jwt_required()
 def update_hospital(hospital_id):
-    """Úprava nemocnice (len pre super_admina)."""
-    logger.info("update_hospital endpoint vyžiadaný pre hospital_id: %s", hospital_id)
+    """Update hospital (only for super_admin)."""
+    logger.info("update_hospital endpoint requested for hospital_id: %s", hospital_id)
     user_id = get_jwt_identity()
     if not (request.is_json and request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']):
-        logger.error("update_hospital: Neplatný vstup alebo Accept header")
+        logger.error("update_hospital: Invalid input or Accept header")
         return jsonify({'error': 'Invalid input or only JSON responses supported'}), 406
 
     data = request.get_json()
-    logger.debug("update_hospital: Prijaté dáta, keys: %s", list(data.keys()))
+    logger.debug("update_hospital: Received data, keys: %s", list(data.keys()))
 
     try:
         response_data, status = hospital_service.update_hospital(user_id, hospital_id, data)
-        logger.info("update_hospital: Nemocnica s id %s aktualizovaná so statusom %s", hospital_id, status)
+        logger.info("update_hospital: Hospital with id %s updated with status %s", hospital_id, status)
     except Exception as e:
-        logger.exception("update_hospital: Výnimka pri aktualizácii nemocnice s id %s: %s", hospital_id, e)
+        logger.exception("update_hospital: Exception while updating hospital with id %s: %s", hospital_id, e)
         return jsonify({'error': 'Internal server error'}), 500
 
     return jsonify(response_data), status
@@ -59,19 +59,19 @@ def update_hospital(hospital_id):
 @bp.route('/list', methods=['GET'])
 @jwt_required()
 def list_hospitals():
-    """Získanie zoznamu nemocníc (len pre super_admina)."""
-    logger.info("list_hospitals endpoint vyžiadaný")
+    """Get list of hospitals (only for super_admin)."""
+    logger.info("list_hospitals endpoint requested")
     user_id = get_jwt_identity()
 
     if not (request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']):
-        logger.error("list_hospitals: Frontend nevyžaduje JSON odpoveď")
+        logger.error("list_hospitals: Frontend does not require JSON response")
         return jsonify({'error': 'Only JSON responses supported'}), 406
 
     try:
         response_data, status = hospital_service.get_hospitals(user_id)
-        logger.info("list_hospitals: Zoznam nemocníc načítaný so statusom %s", status)
+        logger.info("list_hospitals: Hospitals list loaded with status %s", status)
     except Exception as e:
-        logger.exception("list_hospitals: Výnimka pri získavaní nemocníc: %s", e)
+        logger.exception("list_hospitals: Exception while getting hospitals: %s", e)
         return jsonify({'error': 'Internal server error'}), 500
 
     return jsonify(response_data), status
@@ -79,17 +79,17 @@ def list_hospitals():
 @bp.route('/<int:hospital_id>', methods=['GET'])
 @jwt_required()
 def get_hospital(hospital_id):
-    """Získanie informácií o konkrétnej nemocnici (len pre super_admina).
-       Vráti JSON, ak to klient preferuje, inak vykreslí HTML stránku.
+    """Get information about specific hospital (only for super_admin).
+       Returns JSON if client prefers it, otherwise renders HTML page.
     """
-    logger.info("get_hospital endpoint vyžiadaný pre hospital_id: %s", hospital_id)
+    logger.info("get_hospital endpoint requested for hospital_id: %s", hospital_id)
     user_id = get_jwt_identity()
 
     try:
         response_data, status = hospital_service.get_hospital(user_id, hospital_id)
-        logger.info("get_hospital: Informácie nemocnice načítané so statusom %s", status)
+        logger.info("get_hospital: Hospital information loaded with status %s", status)
     except Exception as e:
-        logger.exception("get_hospital: Výnimka pri získavaní nemocnice s id %s: %s", hospital_id, e)
+        logger.exception("get_hospital: Exception while getting hospital with id %s: %s", hospital_id, e)
         if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
             return jsonify({'error': 'Internal server error'}), 500
         else:
@@ -105,9 +105,9 @@ def get_hospital(hospital_id):
 @jwt_required()
 def get_hospitals():
     """
-    Endpoint pre zobrazenie stránky nemocníc.
-    Vyžaduje, aby bol používateľ prihlásený a mal rolu super_admin.
-    Ak nie je, prístup je odmietnutý.
+    Endpoint for displaying hospitals page.
+    Requires user to be logged in and have super_admin role.
+    If not, access is denied.
     """
     user_id = get_jwt_identity()
     try:
@@ -121,5 +121,5 @@ def get_hospitals():
     if status != 200:
         return render_template('error_404.html'), 404
     else:
-        logger.info("Používateľ s id %s pristupuje na stránku nemocníc", user_id_int)
+        logger.info("User with id %s accessing hospitals page", user_id_int)
         return render_template("hospitals.html"), status
