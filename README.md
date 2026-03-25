@@ -55,7 +55,7 @@ Najrýchlejší spôsob spustenia celej aplikácie. Nevyžaduje lokálnu inštal
 
 ```bash
 git clone <repository-url>
-cd TP2025_Server-Client_app
+cd drapp-client-server
 ```
 
 **2. Vytvorte `.env` súbor**
