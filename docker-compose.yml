@@ -3,7 +3,7 @@ services:
   # ─── PostgreSQL ──────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
-    container_name: tp2025-db
+    container_name: tp-apvv-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -19,18 +19,18 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - tp2025-net
+      - tp-apvv-net
 
   # ─── Mock inference server (FastAPI / uvicorn) ───────────────────────────────
   mock-api:
     # image: is used by CI to push/pull from GHCR; IMAGE_OWNER and IMAGE_TAG are
     # set automatically by the deploy workflow. For local dev they default to
     # 'local' / 'latest' and the image stays on-machine only.
-    # image: ghcr.io/${IMAGE_OWNER:-local}/tp2025-mock-api:${IMAGE_TAG:-latest}
+    # image: ghcr.io/${IMAGE_OWNER:-local}/tp-apvv-mock-api:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: build/docker/Dockerfile.mock
-    container_name: tp2025-mock-api
+    container_name: tp-apvv-mock-api
     restart: unless-stopped
     environment:
       MOCK_API_PORT: "5000"
@@ -39,15 +39,15 @@ services:
     ports:
       - "${MOCK_API_PORT:-5000}:5000"
     networks:
-      - tp2025-net
+      - tp-apvv-net
 
   # ─── Flask application ────────────────────────────────────────────────────────
   flask-app:
-    # image: ghcr.io/${IMAGE_OWNER:-local}/tp2025-flask:${IMAGE_TAG:-latest}
+    # image: ghcr.io/${IMAGE_OWNER:-local}/tp-apvv-flask:${IMAGE_TAG:-latest}
     build:
       context: ./flask-app
       dockerfile: build/docker/Dockerfile
-    container_name: tp2025-flask
+    container_name: tp-apvv-flask
     restart: unless-stopped
     environment:
       FLASK_ENV: development
@@ -75,7 +75,7 @@ services:
       mock-api:
         condition: service_started
     networks:
-      - tp2025-net
+      - tp-apvv-net
 
 # ─── Named volumes ────────────────────────────────────────────────────────────
 volumes:
@@ -84,5 +84,5 @@ volumes:
 
 # ─── Network ──────────────────────────────────────────────────────────────────
 networks:
-  tp2025-net:
+  tp-apvv-net:
     driver: bridge
