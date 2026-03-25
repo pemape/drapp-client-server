@@ -41,6 +41,24 @@ services:
     networks:
       - tp-apvv-net
 
+  # ─── pgAdmin (PostgreSQL web admin) ─────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: tp-apvv-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tp-apvv-net
+
   # ─── Flask application ────────────────────────────────────────────────────────
   flask-app:
     # image: ghcr.io/${IMAGE_OWNER:-local}/tp-apvv-flask:${IMAGE_TAG:-latest}
@@ -81,6 +99,7 @@ services:
 volumes:
   postgres_data:
   uploads:
+  pgadmin_data:
 
 # ─── Network ──────────────────────────────────────────────────────────────────
 networks:
