@@ -54,7 +54,7 @@ Najrýchlejší spôsob spustenia celej aplikácie. Nevyžaduje lokálnu inštal
 **1. Naklonujte repozitár**
 
 ```bash
-git clone <repository-url>
+git clone https://FEI-STU-DR-LAB@dev.azure.com/FEI-STU-DR-LAB/ExplainableAI-for-DR-diagnosis/_git/drapp-client-server
 cd drapp-client-server
 ```
 
