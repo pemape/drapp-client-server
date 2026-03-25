@@ -1,0 +1,22 @@
+FROM python:3.11-slim-bullseye
+
+# Pillow needs libjpeg; fastapi/uvicorn needs no extra system libs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+    libpq-dev \
+        libjpeg-dev \
+        zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Reuse the same requirements file (fastapi, uvicorn, pillow, etc. are already there)
+COPY flask-app/requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+COPY mock_api.py .
+
+EXPOSE 5000
+
+CMD ["python", "mock_api.py"]

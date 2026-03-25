@@ -38,6 +38,113 @@ Cieľom aplikácie je:
 
 ## 🚀 Developer Setup Guide
 
+---
+
+## 🐳 Docker Compose Setup (Recommended)
+
+Najrýchlejší spôsob spustenia celej aplikácie. Nevyžaduje lokálnu inštaláciu Pythonu ani PostgreSQL — stačí Docker.
+
+### Prerequisites
+
+- **Docker Desktop** (zahŕňa Docker Engine aj Docker Compose) — [Download](https://www.docker.com/products/docker-desktop/)
+- **Git** — [Download](https://git-scm.com/downloads)
+
+### ▶️ Spustenie v 3 krokoch
+
+**1. Naklonujte repozitár**
+
+```bash
+git clone <repository-url>
+cd TP2025_Server-Client_app
+```
+
+**2. Vytvorte `.env` súbor**
+
+Skopírujte `env_example` a nastavte tajné kľúče:
+
+```bash
+# Linux / macOS / Git Bash
+cp env_example .env
+
+# Windows PowerShell
+Copy-Item env_example .env
+```
+
+Minimálne hodnoty, ktoré je potrebné zmeniť v `.env`:
+
+```env
+SECRET_KEY=your-strong-secret-key
+JWT_SECRET_KEY=your-strong-jwt-secret
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=your-admin-password
+```
+
+Všetky ostatné hodnoty majú bezpečné predvolené nastavenia a Docker Compose ich automaticky prepíše správnymi internými adresami (napr. `DATABASE_URL` a `MOCK_API_URL` sú nastavené na mená kontajnerov vnútri siete).
+
+**3. Spustite aplikáciu**
+
+```bash
+docker compose up --build
+```
+
+Pri prvom spustení Docker stiahne obrazy a zostaví kontajnery. Nasledujúce spustenia sú rýchlejšie:
+
+```bash
+docker compose up
+```
+
+### 🌐 Dostupné služby
+
+| Služba | URL | Popis |
+|---|---|---|
+| Flask aplikácia | http://localhost:8080 | Hlavné webové rozhranie |
+| Mock inference API | http://localhost:5000 | Simulovaný AI server |
+| PostgreSQL | `localhost:5432` | Databáza (napr. pre pgAdmin) |
+
+### 🛑 Zastavenie a čistenie
+
+```bash
+# Zastavenie kontajnerov (dáta zostanú zachované)
+docker compose down
+
+# Zastavenie + odstránenie databázových volumes (vymaže všetky dáta!)
+docker compose down -v
+
+# Prebudovanie kontajnerov po zmene kódu
+docker compose up --build
+```
+
+### ⚙️ Konfigurácia portov
+
+Porty je možné zmeniť v `.env` súbore bez úpravy `docker-compose.yml`:
+
+```env
+FLASK_PORT=8080       # Port Flask aplikácie
+MOCK_API_PORT=5000    # Port mock inference servera
+DB_PORT=5432          # Port PostgreSQL
+```
+
+### 📋 Správa jednotlivých služieb
+
+```bash
+# Sledovanie logov konkrétnej služby
+docker compose logs -f flask-app
+docker compose logs -f mock-api
+docker compose logs -f db
+
+# Reštart jednej služby
+docker compose restart flask-app
+
+# Spustenie príkazu vo vnútri kontajnera (napr. migrácie)
+docker compose exec flask-app python migrate.py db upgrade
+```
+
+---
+
+## 🛠️ Manual (Local) Setup
+
+Ak preferujete manuálne nastavenie bez Dockera:
+
 ### Prerequisites
 
 Pred začatím práce na projekte sa uistite, že máte nainštalované:
@@ -189,20 +296,30 @@ pytest tests/ -v --cov=server --cov-report=html --cov-report=term
 ### 📁 Project Structure
 
 ```
-flask-app/
-├── server/                 # Flask backend
-│   ├── models/            # Database models
-│   ├── routes/            # API routes
-│   ├── services/          # Business logic
-│   └── utils/             # Utilities
-├── client/                # Frontend files
-├── tests/                 # Test files
-├── migrations/            # Database migrations
-├── uploads/               # File uploads
-├── requirements.txt       # Python dependencies
-├── Makefile              # Development commands
-└── run.py                # Application entry point
-mock_api.py               # Mock inference server (root level)
+TP2025_Server-Client_app/
+├── docker-compose.yml        # Orchestrates all three services
+├── build/
+│   └── docker/
+│       └── Dockerfile.mock   # Docker image for the mock inference server
+├── mock_api.py               # Mock inference server (FastAPI / uvicorn)
+├── env_example               # Template for .env file
+├── .devcontainer/
+│   └── devcontainer.json     # VS Code Dev Container config
+└── flask-app/
+    ├── build/
+    │   └── docker/
+    │       └── Dockerfile    # Docker image for the Flask app
+    ├── run.py                # Application entry point
+    ├── requirements.txt      # Python dependencies
+    ├── Makefile              # Development commands
+    ├── server/               # Flask backend
+    │   ├── models/           # Database models
+    │   ├── routes/           # API routes
+    │   └── services/         # Business logic
+    ├── client/               # Frontend (HTML / CSS / JS)
+    ├── tests/                # Test files
+    ├── migrations/           # Alembic DB migrations
+    └── uploads/              # Uploaded files (persisted via Docker volume)
 ```
 
 ### 🛠️ Available Make Commands

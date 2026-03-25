@@ -42,7 +42,7 @@ class Config:
 
     # UPLOAD_FOLDER = "C:\ProgrammingProjects\APPV_DRAI\TP2025_Server-Client_app\flask-app\uploads"
     UPLOAD_FOLDER = f"{os.path.dirname(os.path.abspath(__file__))}/uploads"
-    PROCESSING_SERVICE_URL = f"http://0.0.0.0:{MOCK_API_PORT}"
+    PROCESSING_SERVICE_URL = os.environ.get('MOCK_API_URL') or f"http://localhost:{MOCK_API_PORT}"
     RECIEVING_ENDPOINT = f"http://localhost:{FLASK_PORT}/photos/processed/recieve"
 
     @staticmethod

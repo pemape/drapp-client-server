@@ -1,0 +1,54 @@
+{
+  "name": "TP2025 Flask Dev Container",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bullseye",
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter",
+        "ms-python.flake8",
+        "ms-azuretools.vscode-docker",
+        "yy0931.vscode-sqlite3-editor"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.analysis.typeCheckingMode": "basic",
+        "editor.formatOnSave": true,
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  },
+  "containerEnv": {
+    "FLASK_ENV": "development",
+    "FLASK_DEBUG": "1",
+    "FLASK_PORT": "8080",
+    "MOCK_API_PORT": "5000"
+  },
+  "postCreateCommand": "python -m pip install --upgrade pip && pip install -r flask-app/requirements.txt",
+  "forwardPorts": [
+    8080,
+    5000,
+    5432
+  ],
+  "portsAttributes": {
+    "8080": {
+      "label": "Flask App",
+      "onAutoForward": "notify"
+    },
+    "5000": {
+      "label": "Mock API",
+      "onAutoForward": "silent"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    }
+  }
+}
