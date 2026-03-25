@@ -161,9 +161,7 @@ Pre rýchle nastavenie vývojového prostredia:
 ```bash
 # 1. Klonujte repozitár
 git clone <repository-url>
-cd TP2025_Server-Client_app/flask-app
-
-# 2. Spustite kompletné nastavenie
+cd drapp-client-server/flask-app
 make setup-dev
 
 # 3. Aktivujte virtuálne prostredie
