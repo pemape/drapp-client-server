@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bullseye
+FROM python:3.11-slim-bookworm
 
 # Pillow needs libjpeg; fastapi/uvicorn needs no extra system libs
 RUN apt-get update && apt-get install -y --no-install-recommends \

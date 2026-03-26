@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bullseye
+FROM python:3.11-slim-bookworm
 
 # Install system dependencies needed by psycopg2 and Pillow
 RUN apt-get update && apt-get install -y --no-install-recommends \
