@@ -1,7 +1,7 @@
 {
   "name": "Flask Dev Container",
   // Use the project's docker-compose stack so DB and mock-api start alongside the dev container
-  "dockerComposeFile": "../docker-compose.yml",
+  "dockerComposeFile": "../build/docker/docker-compose.yml",
   "service": "flask-app",
   "workspaceFolder": "/app",
   "remoteUser": "root",
@@ -18,6 +18,7 @@
         "ms-python.flake8",
         "ms-azuretools.vscode-docker",
         "yy0931.vscode-sqlite3-editor",
+        "github.vscode-github-actions",
         "mhutchie.git-graph"
       ],
       "settings": {
@@ -28,12 +29,13 @@
       }
     }
   },
-  // DB migrations run automatically; tweak if you prefer manual control
-  "postCreateCommand": "python migrate.py db upgrade || true",
+  // // DB migrations run automatically; tweak if you prefer manual control
+  // "postCreateCommand": "python migrate.py db upgrade || true",
   "forwardPorts": [
     8080,
     5000,
-    5432
+    5432,
+    5032
   ],
   "portsAttributes": {
     "8080": {
@@ -41,11 +43,15 @@
       "onAutoForward": "notify"
     },
     "5000": {
-      "label": "Mock API",
+      "label": "Inference API",
       "onAutoForward": "silent"
     },
     "5432": {
       "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    },
+    "5032": {
+      "label": "Flask Debug App",
       "onAutoForward": "silent"
     }
   }

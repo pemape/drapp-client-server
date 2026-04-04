@@ -10,8 +10,10 @@
             "request": "launch",
             "module": "flask",
             "env": {
-                "FLASK_APP": "${cwd}\\flask-app\\run.py",
-                "FLASK_DEBUG": "1"
+                "FLASK_APP": "${cwd}/flask-app/run.py",
+                "FLASK_DEBUG": "1",
+                "LOG_LEVEL": "DEBUG",
+                "FLASK_PORT": "5032"
             },
             "args": [
                 "run",

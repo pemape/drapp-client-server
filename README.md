@@ -84,13 +84,13 @@ Všetky ostatné hodnoty majú bezpečné predvolené nastavenia a Docker Compos
 **3. Spustite aplikáciu**
 
 ```bash
-docker compose up --build
+docker compose -f build/docker/docker-compose.yml up --build
 ```
 
 Pri prvom spustení Docker stiahne obrazy a zostaví kontajnery. Nasledujúce spustenia sú rýchlejšie:
 
 ```bash
-docker compose up
+docker compose -f build/docker/docker-compose.yml up
 ```
 
 ### 🌐 Dostupné služby
@@ -105,18 +105,18 @@ docker compose up
 
 ```bash
 # Zastavenie kontajnerov (dáta zostanú zachované)
-docker compose down
+docker compose -f build/docker/docker-compose.yml down
 
 # Zastavenie + odstránenie databázových volumes (vymaže všetky dáta!)
-docker compose down -v
+docker compose -f build/docker/docker-compose.yml down -v
 
 # Prebudovanie kontajnerov po zmene kódu
-docker compose up --build
+docker compose -f build/docker/docker-compose.yml up --build
 ```
 
 ### ⚙️ Konfigurácia portov
 
-Porty je možné zmeniť v `.env` súbore bez úpravy `docker-compose.yml`:
+Porty je možné zmeniť v `.env` súbore bez úpravy `build/docker/docker-compose.yml`:
 
 ```env
 FLASK_PORT=8080       # Port Flask aplikácie
@@ -128,15 +128,15 @@ DB_PORT=5432          # Port PostgreSQL
 
 ```bash
 # Sledovanie logov konkrétnej služby
-docker compose logs -f flask-app
-docker compose logs -f mock-api
-docker compose logs -f db
+docker compose -f build/docker/docker-compose.yml logs -f flask-app
+docker compose -f build/docker/docker-compose.yml logs -f mock-api
+docker compose -f build/docker/docker-compose.yml logs -f db
 
 # Reštart jednej služby
-docker compose restart flask-app
+docker compose -f build/docker/docker-compose.yml restart flask-app
 
 # Spustenie príkazu vo vnútri kontajnera (napr. migrácie)
-docker compose exec flask-app python migrate.py db upgrade
+docker compose -f build/docker/docker-compose.yml exec flask-app python migrate.py db upgrade
 ```
 
 ---
@@ -295,18 +295,16 @@ pytest tests/ -v --cov=server --cov-report=html --cov-report=term
 
 ```
 TP2025_Server-Client_app/
-├── docker-compose.yml        # Orchestrates all three services
 ├── build/
 │   └── docker/
-│       └── Dockerfile.mock   # Docker image for the mock inference server
+│       ├── docker-compose.yml  # Orchestrates all services
+│       ├── Dockerfile         # Docker image for the Flask app
+│       └── Dockerfile.mock    # Docker image for the mock inference server
 ├── mock_api.py               # Mock inference server (FastAPI / uvicorn)
 ├── env_example               # Template for .env file
 ├── .devcontainer/
 │   └── devcontainer.json     # VS Code Dev Container config
 └── flask-app/
-    ├── build/
-    │   └── docker/
-    │       └── Dockerfile    # Docker image for the Flask app
     ├── run.py                # Application entry point
     ├── requirements.txt      # Python dependencies
     ├── Makefile              # Development commands

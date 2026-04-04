@@ -12,16 +12,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY flask-app/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the flask-app sources
+# Copy only the Flask app sources from the repository root context
 COPY . .
 
 # Ensure the uploads directory exists at runtime
-RUN mkdir -p server/uploads
+RUN mkdir -p flask-app/server/uploads
 
 EXPOSE 8080
 
-CMD ["python", "run.py"]
+CMD ["python", "flask-app/run.py"]

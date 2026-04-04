@@ -185,10 +185,10 @@ docker-run:
 	docker run -p 5000:5000 retinal-system
 
 docker-compose-up:
-	docker-compose up -d
+	docker compose -f ../build/docker/docker-compose.yml up -d
 
 docker-compose-down:
-	docker-compose down
+	docker compose -f ../build/docker/docker-compose.yml down
 
 # Start mock inference server in foreground
 mock-server:
