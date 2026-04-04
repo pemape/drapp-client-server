@@ -21,25 +21,39 @@ services:
     networks:
       - tp-apvv-net
 
-  # ─── Mock inference server (FastAPI / uvicorn) ───────────────────────────────
-  mock-api:
-    # image: is used by CI to push/pull from GHCR; IMAGE_OWNER and IMAGE_TAG are
-    # set automatically by the deploy workflow. For local dev they default to
-    # 'local' / 'latest' and the image stays on-machine only.
-    # image: ghcr.io/${IMAGE_OWNER:-local}/tp-apvv-mock-api:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: build/docker/Dockerfile.mock
-    container_name: tp-apvv-mock-api
+  # ─── DR classifier service ───────────────────────────────────────────────────
+  classifier-service:
+    image: ppetermm/image-preprocessing-ensemble-dr-classifier-service:latest
+    container_name: tp-apvv-classifier-service
     restart: unless-stopped
     environment:
+      AZURE_STORAGE_SAS_TOKEN: ${AZURE_STORAGE_SAS_TOKEN:-your-sas-token}
       MOCK_API_PORT: "5000"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FILE: app.log
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "${MOCK_API_PORT:-5000}:5000"
     networks:
       - tp-apvv-net
+
+  # ─── Redis (for caching) ─────────────────────────────────────────────────────
+  redis:
+    image: redis:latest
+    container_name: tp-apvv-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - tp-apvv-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
 
   # ─── pgAdmin (PostgreSQL web admin) ─────────────────────────────────────────
   pgadmin:
@@ -74,7 +88,7 @@ services:
       # Point to the compose service name so inter-container routing works
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-retinal_db}
       SQLALCHEMY_DATABASE_URI: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-retinal_db}
-      MOCK_API_URL: http://mock-api:5000
+      MOCK_API_URL: http://classifier-service:5000
       MOCK_API_PORT: "5000"
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
@@ -90,7 +104,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      mock-api:
+      classifier-service:
         condition: service_started
     networks:
       - tp-apvv-net
@@ -100,6 +114,7 @@ volumes:
   postgres_data:
   uploads:
   pgadmin_data:
+  redis-data:
 
 # ─── Network ──────────────────────────────────────────────────────────────────
 networks:

@@ -19,6 +19,7 @@ LOG_FILE=app.log                  # Log file path (can include directories like 
 
 # Mock API Configuration
 MOCK_API_URL=http://localhost:5000
+AZURE_STORAGE_SAS_TOKEN=sas-token
 
 # Konfigurácia JWT v cookies
 JWT_COOKIE_SECURE=true# V produkcii by malo byť nastavené na true (vyžaduje HTTPS)

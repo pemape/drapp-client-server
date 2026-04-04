@@ -372,52 +372,66 @@ class PhotoService:
             db.session.add(processed_photo)
             db.session.commit()
 
-            payload = {
-                "file": {
-                    "id": int(processed_photo.id),
-                    "data": base64.b64encode(open(photo.original_image_path, 'rb').read()).decode('utf-8'),
-                    "extension": file_extension
-                },
-                "method": {
-                    "name": method_name,
-                    "parameters": method_parameters
-                },
-                "metadata": {
-                    "original_photo_id": int(photo_id),
-                    "user_id": int(user_id),
-                    "patient_id": int(patient_id),
-                    "eye_side": str(eye_side),
-                    "diagnosis": str(diagnosis),
-                    "device_name": str(device_name),
-                    "device_type": str(device_type),
-                    "camera_type": str(camera_type)
-                },
-                "recieving_endpoint": Config.RECIEVING_ENDPOINT
-            }
+            logger.info(f"Sending image to inference server: {photo.original_image_path}")
 
-            print(f"Sending image to processing: {photo.original_image_path}")
-
-            # Send the image to the processing service with a timeout
+            # Send image as multipart/form-data to /process endpoint.
             try:
-                response = requests.post(
-                    f"{Config.PROCESSING_SERVICE_URL}/process-image",
-                    json=payload,
-                    timeout=10  # 10 second timeout
-                )
+                with open(photo.original_image_path, 'rb') as image_file:
+                    files = {
+                        "image": (
+                            os.path.basename(photo.original_image_path),
+                            image_file,
+                            f"image/{file_extension if file_extension else 'jpeg'}"
+                        )
+                    }
+
+                    response = requests.post(
+                        f"{Config.PROCESSING_SERVICE_URL}/process",
+                        files=files,
+                        timeout=30
+                    )
+
                 if response.status_code != 200:
-                    print(f"Failed to send image to processing: {response.status_code}")
-                    # Update the status to indicate the error
+                    error_detail = ""
+                    try:
+                        error_detail = response.json().get("error", "")
+                    except ValueError:
+                        error_detail = response.text
+
                     processed_photo.set_status(ProcessingStatus.ERROR)
                     db.session.commit()
-                    return False, 500, f"Failed to send image to processing: {response.status_code}"
+                    return False, response.status_code, (
+                        f"Inference request failed ({response.status_code}): {error_detail}"
+                    )
+
+                response_data = response.json()
+                process_result = response_data.get("process_result", {})
+                classification = process_result.get("classification", {})
+
+                predicted_label = classification.get("predicted_class_label")
+                confidence_score = classification.get("confidence_score")
+
+                if predicted_label is None:
+                    predicted_label = classification.get("predicted_class")
+
+                if predicted_label is None:
+                    predicted_label = "Unknown"
+
+                if confidence_score is not None:
+                    processed_photo.answer = f"{predicted_label} ({float(confidence_score):.2f})"
                 else:
-                    print(f"Image sent to processing successfully: {response.status_code}")
-                    return True, 200, "Image sent to processing successfully"
+                    processed_photo.answer = str(predicted_label)
+
+                processed_photo.set_status(ProcessingStatus.COMPLETED)
+                db.session.commit()
+
+                return True, 200, "Image evaluated successfully"
+
             except requests.exceptions.RequestException as e:
-                logger.error(f"Network error sending image to processing: {str(e)}")
+                logger.error(f"Network error sending image to inference server: {str(e)}")
                 processed_photo.set_status(ProcessingStatus.ERROR)
                 db.session.commit()
-                return False, 500, f"Network error sending image to processing: {str(e)}"
+                return False, 500, f"Network error sending image to inference server: {str(e)}"
         except Exception as e:
             logger.error(f"Error sending image to processing: {str(e)}")
             return False, 500, f"Error sending image to processing: {str(e)}"
