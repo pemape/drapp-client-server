@@ -17,7 +17,8 @@
         "ms-python.black-formatter",
         "ms-python.flake8",
         "ms-azuretools.vscode-docker",
-        "yy0931.vscode-sqlite3-editor"
+        "yy0931.vscode-sqlite3-editor",
+        "mhutchie.git-graph"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
