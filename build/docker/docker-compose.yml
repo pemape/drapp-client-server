@@ -28,13 +28,13 @@ services:
     restart: unless-stopped
     environment:
       AZURE_STORAGE_SAS_TOKEN: ${AZURE_STORAGE_SAS_TOKEN:-your-sas-token}
-      MOCK_API_PORT: "5000"
+      MOCK_API_PORT: "5032"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FILE: app.log
       REDIS_HOST: redis
       REDIS_PORT: 6379
     ports:
-      - "${MOCK_API_PORT:-5000}:5000"
+      - "${MOCK_API_PORT:-5032}:5032"
     networks:
       - tp-apvv-net
 
@@ -88,8 +88,8 @@ services:
       # Point to the compose service name so inter-container routing works
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-retinal_db}
       SQLALCHEMY_DATABASE_URI: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-retinal_db}
-      MOCK_API_URL: http://classifier-service:5000
-      MOCK_API_PORT: "5000"
+      MOCK_API_URL: http://classifier-service:5032
+      MOCK_API_PORT: "5032"
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}

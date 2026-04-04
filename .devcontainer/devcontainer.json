@@ -42,7 +42,7 @@
       "label": "Flask App",
       "onAutoForward": "notify"
     },
-    "5000": {
+    "5032": {
       "label": "Inference API",
       "onAutoForward": "silent"
     },
@@ -50,7 +50,7 @@
       "label": "PostgreSQL",
       "onAutoForward": "silent"
     },
-    "5032": {
+    "5000": {
       "label": "Flask Debug App",
       "onAutoForward": "silent"
     }

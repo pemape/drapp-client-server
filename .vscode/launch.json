@@ -9,6 +9,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "flask",
+            "envFile": "${workspaceFolder}/build/docker/.env",
             "env": {
                 "FLASK_APP": "${cwd}/flask-app/run.py",
                 "FLASK_DEBUG": "1",
@@ -28,6 +29,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${cwd}/flask-app/run.py", // <-- Specify the file to execute
+            "envFile": "${workspaceFolder}/build/docker/.env",
             "env": {
                 "FLASK_DEBUG": "1", // Still useful for general Flask debugging
                 "LOG_LEVEL": "DEBUG"
