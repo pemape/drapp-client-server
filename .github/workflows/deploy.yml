@@ -73,5 +73,13 @@ jobs:
             # docker compose reads them automatically without an --env-file.
             # 'down' stops and removes the old containers; 'up --build' rebuilds images
             # and starts fresh containers, effectively replacing the previous deployment.
-            docker compose -f build/docker/docker-compose.yml down
-            docker compose -f build/docker/docker-compose.yml up -d --build
+            if docker compose version >/dev/null 2>&1; then
+              docker compose -f build/docker/docker-compose.yml down
+              docker compose -f build/docker/docker-compose.yml up -d --build
+            elif command -v docker-compose >/dev/null 2>&1; then
+              docker-compose -f build/docker/docker-compose.yml down
+              docker-compose -f build/docker/docker-compose.yml up -d --build
+            else
+              echo "Neither 'docker compose' nor 'docker-compose' is available on the server."
+              exit 1
+            fi
