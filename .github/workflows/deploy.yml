@@ -73,6 +73,15 @@ jobs:
             # docker compose reads them automatically without an --env-file.
             # 'down' stops and removes the old containers; 'up --build' rebuilds images
             # and starts fresh containers, effectively replacing the previous deployment.
+
+            # Ensure the bind-mounted log directory and per-service log files exist with
+            # write permissions before containers start; otherwise Docker creates the
+            # mount target as root-owned and the app process cannot write to it.
+            mkdir -p build/docker/logs
+            touch build/docker/logs/flask.log build/docker/logs/classifier.log
+            chmod 664 build/docker/logs/flask.log build/docker/logs/classifier.log
+            chmod 775 build/docker/logs
+
             # Some older/manual containers may exist outside the current compose project.
             # Because this stack uses fixed container_name values, pre-clean them to avoid
             # "container name is already in use" conflicts during deploy.
