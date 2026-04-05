@@ -73,12 +73,19 @@ jobs:
             # docker compose reads them automatically without an --env-file.
             # 'down' stops and removes the old containers; 'up --build' rebuilds images
             # and starts fresh containers, effectively replacing the previous deployment.
+            # Some older/manual containers may exist outside the current compose project.
+            # Because this stack uses fixed container_name values, pre-clean them to avoid
+            # "container name is already in use" conflicts during deploy.
+            for c in tp-apvv-db tp-apvv-classifier-service tp-apvv-redis tp-apvv-pgadmin tp-apvv-flask; do
+              docker rm -f "$c" >/dev/null 2>&1 || true
+            done
+
             if docker compose version >/dev/null 2>&1; then
-              docker compose -f build/docker/docker-compose.yml down
-              docker compose -f build/docker/docker-compose.yml up -d --build
+              docker compose -f build/docker/docker-compose.yml down --remove-orphans
+              docker compose -f build/docker/docker-compose.yml up -d --build --remove-orphans
             elif command -v docker-compose >/dev/null 2>&1; then
-              docker-compose -f build/docker/docker-compose.yml down
-              docker-compose -f build/docker/docker-compose.yml up -d --build
+              docker-compose -f build/docker/docker-compose.yml down --remove-orphans
+              docker-compose -f build/docker/docker-compose.yml up -d --build --remove-orphans
             else
               echo "Neither 'docker compose' nor 'docker-compose' is available on the server."
               exit 1
