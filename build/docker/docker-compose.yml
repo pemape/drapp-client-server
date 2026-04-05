@@ -31,11 +31,13 @@ services:
       PROCESSING_SERVICE_PORT: "${PROCESSING_SERVICE_PORT:-5032}"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: "${LOG_FORMAT:-%(asctime)s - %(name)s - %(levelname)s - %(message)s}"
-      LOG_FILE: ${LOG_FILE:-app.log}
+      LOG_FILE: ${LOG_FILE:-logs/classifier.log}
       REDIS_HOST: redis
       REDIS_PORT: 6379
     ports:
       - "${PROCESSING_SERVICE_PORT:-5032}:${PROCESSING_SERVICE_PORT:-5032}"
+    volumes:
+      - ./logs:/app/logs
     networks:
       - tp-apvv-net
 
@@ -94,7 +96,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: "${LOG_FORMAT:-%(asctime)s - %(name)s - %(levelname)s - %(message)s}"
-      LOG_FILE: ${LOG_FILE:-app.log}
+      LOG_FILE: ${LOG_FILE:-logs/flask.log}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
     ports:
@@ -102,6 +104,8 @@ services:
     volumes:
       # Persist uploaded files outside the container
       - uploads:/app/server/uploads
+      # Persist logs on the host so they survive container restarts and crashes
+      - ./logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
