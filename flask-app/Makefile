@@ -64,7 +64,7 @@ MOCK_SERVER_PID := .mock_server.pid
 
 # Get port values from environment or use defaults
 FLASK_PORT := $(shell echo $${FLASK_PORT:-8080})
-MOCK_API_PORT := $(shell echo $${MOCK_API_PORT:-5000})
+PROCESSING_SERVICE_PORT := $(shell echo $${PROCESSING_SERVICE_PORT:-5000})
 
 # Create virtual environment
 venv:
@@ -169,7 +169,7 @@ health-check:
 
 # Check mock server health  
 health-check-mock:
-	curl -f http://localhost:$(MOCK_API_PORT)/health || echo "Mock API server is not responding on port $(MOCK_API_PORT)"
+	curl -f http://localhost:$(PROCESSING_SERVICE_PORT)/health || echo "Mock API server is not responding on port $(PROCESSING_SERVICE_PORT)"
 
 # Backup database (PostgreSQL)
 backup-db:
@@ -192,14 +192,14 @@ docker-compose-down:
 
 # Start mock inference server in foreground
 mock-server:
-	@echo "Starting mock inference server on http://localhost:$(MOCK_API_PORT)..."
+	@echo "Starting mock inference server on http://localhost:$(PROCESSING_SERVICE_PORT)..."
 	cd .. && $(PYTHON) mock_api.py
 
 # Start mock inference server in background
 mock-server-bg:
-	@echo "Starting mock inference server in background on http://localhost:$(MOCK_API_PORT)..."
+	@echo "Starting mock inference server in background on http://localhost:$(PROCESSING_SERVICE_PORT)..."
 	cd .. && start /B $(PYTHON) mock_api.py
-	@echo "Mock server started in background on port $(MOCK_API_PORT)"
+	@echo "Mock server started in background on port $(PROCESSING_SERVICE_PORT)"
 	@echo "Use 'make stop-mock-server' to stop it"
 
 # Stop background mock inference server

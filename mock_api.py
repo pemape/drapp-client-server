@@ -299,6 +299,10 @@ async def health_check():
 
 if __name__ == "__main__":
     # Use configurable port from environment variable
-    port = int(os.environ.get('MOCK_API_PORT') or 5000)
+    port = int(
+        os.environ.get('PROCESSING_SERVICE_PORT')
+        or os.environ.get('MOCK_API_PORT')
+        or 5000
+    )
     mock_logger.info(f"Starting Mock API server on port {port} with log level {LOG_LEVEL}")
     uvicorn.run(app, host="0.0.0.0", port=port)

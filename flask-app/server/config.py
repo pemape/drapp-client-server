@@ -5,9 +5,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///app.db'
+    DATABASE_URL = (
+        os.environ.get('DATABASE_URL')
+        or os.environ.get('SQLALCHEMY_DATABASE_URI')
+        or 'sqlite:///app.db'
+    )
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'myjwtsecret'
     LOGIN_RATE_LIMIT = "3 per 10 minutes"
@@ -20,7 +26,11 @@ class Config:
 
     # Port configuration
     FLASK_PORT = int(os.environ.get('FLASK_PORT') or 8080)
-    MOCK_API_PORT = int(os.environ.get('MOCK_API_PORT') or 5000)
+    PROCESSING_SERVICE_PORT = int(
+        os.environ.get('PROCESSING_SERVICE_PORT')
+        or os.environ.get('MOCK_API_PORT')
+        or 5000
+    )
 
     # Logging configuration
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
@@ -42,7 +52,11 @@ class Config:
 
     # UPLOAD_FOLDER = "C:\ProgrammingProjects\APPV_DRAI\TP2025_Server-Client_app\flask-app\uploads"
     UPLOAD_FOLDER = f"{os.path.dirname(os.path.abspath(__file__))}/uploads"
-    PROCESSING_SERVICE_URL = os.environ.get('MOCK_API_URL') or f"http://localhost:{MOCK_API_PORT}"
+    PROCESSING_SERVICE_URL = (
+        os.environ.get('PROCESSING_SERVICE_URL')
+        or os.environ.get('MOCK_API_URL')
+        or f"http://localhost:{PROCESSING_SERVICE_PORT}"
+    )
     RECIEVING_ENDPOINT = f"http://localhost:{FLASK_PORT}/photos/processed/recieve"
 
     @staticmethod

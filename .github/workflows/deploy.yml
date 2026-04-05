@@ -1,0 +1,77 @@
+name: Deploy via Tailscale
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          # If DEPLOY_PATH repo variable is unset, the script falls back to $HOME/<repo-name>
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '' }}
+          GIT_REF: ${{ github.ref_name }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          DB_USER: ${{ vars.DB_USER || 'postgres' }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ vars.DB_NAME || 'retinal_db' }}
+          DB_PORT: ${{ vars.DB_PORT || '5432' }}
+          FLASK_PORT: ${{ vars.FLASK_PORT || '8080' }}
+          PROCESSING_SERVICE_PORT: ${{ vars.PROCESSING_SERVICE_PORT || '5032' }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          AZURE_STORAGE_SAS_TOKEN: ${{ secrets.AZURE_STORAGE_SAS_TOKEN }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL || 'INFO' }}
+          LOG_FORMAT: ${{ vars.LOG_FORMAT || '%(asctime)s - %(name)s - %(levelname)s - %(message)s' }}
+          LOG_FILE: ${{ vars.LOG_FILE || 'app.log' }}
+          PGADMIN_DEFAULT_EMAIL: ${{ vars.PGADMIN_DEFAULT_EMAIL || 'admin@example.com' }}
+          PGADMIN_DEFAULT_PASSWORD: ${{ secrets.PGADMIN_DEFAULT_PASSWORD }}
+          PGADMIN_PORT: ${{ vars.PGADMIN_PORT || '5050' }}
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: DEPLOY_PATH,GIT_REF,REPO_NAME,DB_USER,DB_PASSWORD,DB_NAME,DB_PORT,FLASK_PORT,PROCESSING_SERVICE_PORT,SECRET_KEY,JWT_SECRET_KEY,ADMIN_EMAIL,ADMIN_PASSWORD,AZURE_STORAGE_SAS_TOKEN,LOG_LEVEL,LOG_FORMAT,LOG_FILE,PGADMIN_DEFAULT_EMAIL,PGADMIN_DEFAULT_PASSWORD,PGADMIN_PORT
+          script: |
+            DEPLOY_PATH="${DEPLOY_PATH:-$HOME/$REPO_NAME}"
+
+            # First deploy: clone the repository if the directory does not exist yet.
+            # Subsequent deploys: fetch and check out the target ref, then rebuild.
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              git clone "https://github.com/${{ github.repository }}.git" "$DEPLOY_PATH"
+            fi
+
+            cd "$DEPLOY_PATH"
+
+            # Update repository state
+            git fetch --all --tags --prune
+            if git rev-parse "refs/tags/$GIT_REF" >/dev/null 2>&1; then
+              git checkout "$GIT_REF"
+            else
+              git checkout main
+              git pull origin main
+            fi
+
+            # Restart services
+            # Variables injected via 'envs:' above are already in the shell environment;
+            # docker compose reads them automatically without an --env-file.
+            # 'down' stops and removes the old containers; 'up --build' rebuilds images
+            # and starts fresh containers, effectively replacing the previous deployment.
+            docker compose -f build/docker/docker-compose.yml down
+            docker compose -f build/docker/docker-compose.yml up -d --build

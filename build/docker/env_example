@@ -1,36 +1,28 @@
-# Database Configuration
-DATABASE_URL=postgresql://username:password@localhost/retinal_db
-SQLALCHEMY_DATABASE_URI=postgresql://username:password@localhost/retinal_db
+# Docker Compose environment overrides
 
-# Flask Configuration
-FLASK_ENV=development
-FLASK_DEBUG=1
+# PostgreSQL service
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=retinal_db
+DB_PORT=5432
+
+# Flask application service
+FLASK_PORT=8080
 SECRET_KEY=your-secret-key-here
 JWT_SECRET_KEY=your-jwt-secret-key-here
-
-# Port Configuration
-FLASK_PORT=8080
-MOCK_API_PORT=5000
-
-# Logging Configuration
-LOG_LEVEL=INFO                    # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL, TRACE
-LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
-LOG_FILE=app.log                  # Log file path (can include directories like logs/app.log)
-
-# Mock API Configuration
-MOCK_API_URL=http://localhost:5000
-AZURE_STORAGE_SAS_TOKEN=sas-token
-
-# Konfigurácia JWT v cookies
-JWT_COOKIE_SECURE=true# V produkcii by malo byť nastavené na true (vyžaduje HTTPS)
-JWT_COOKIE_CSRF_PROTECT=true# Odporúča sa povoliť CSRF ochranu
-JWT_COOKIE_SAMESITE=Lax# Hodnota 'Lax' alebo 'Strict' na obmedzenie prenosu cookie
-
-# Administrátorské údaje
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=password_example
-# ADMIN_FIRST_NAME=FEI
-# ADMIN_LAST_NAME=Admin
 
-# Limity prihlásenia (ak chcete upraviť)
-LOGIN_RATE_LIMIT=3 per 10 minutes
+# Processing service
+PROCESSING_SERVICE_PORT=5032
+AZURE_STORAGE_SAS_TOKEN=your-sas-token
+
+# Shared logging
+LOG_LEVEL=INFO
+LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
+LOG_FILE=app.log
+
+# pgAdmin service
+PGADMIN_DEFAULT_EMAIL=admin@example.com
+PGADMIN_DEFAULT_PASSWORD=admin
+PGADMIN_PORT=5050

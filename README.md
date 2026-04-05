@@ -11,21 +11,21 @@ Cieľom aplikácie je:
 
 ## Funkcionality
 
-1. **Server aplikácia s MySQL databázou**  
-   - Ukladanie informácií o používateľoch (s rôznymi úrovňami prístupu).  
-   - Uchovávanie anonymizovaných údajov o pacientoch.  
+1. **Server aplikácia s MySQL databázou**
+   - Ukladanie informácií o používateľoch (s rôznymi úrovňami prístupu).
+   - Uchovávanie anonymizovaných údajov o pacientoch.
    - Evidovanie ciest k súborom obsahujúcim obrazy očných sietnic.
 
-2. **Web rozhranie pre správu databázy**  
-   - Prehľadné zobrazenie obrazov a výsledkov spracovania podľa jednotlivých používateľov.  
+2. **Web rozhranie pre správu databázy**
+   - Prehľadné zobrazenie obrazov a výsledkov spracovania podľa jednotlivých používateľov.
    - Administratívne nástroje pre správu a údržbu databázy.
 
-3. **Web formulár pre mobilné zariadenia (PWA)**  
+3. **Web formulár pre mobilné zariadenia (PWA)**
    - Responzívny prístup cez progresívnu webovú aplikáciu optimalizovanú pre mobilné zariadenia.
-   
 
-4. **Testovanie funkcionalít**  
-   - Jednotkové a integračné testy na overenie funkčnosti celej aplikácie.  
+
+4. **Testovanie funkcionalít**
+   - Jednotkové a integračné testy na overenie funkčnosti celej aplikácie.
    - Zabezpečenie kvality a spoľahlivosti implementovaných riešení.
 
 ## Technológie
@@ -60,14 +60,14 @@ cd drapp-client-server
 
 **2. Vytvorte `.env` súbor**
 
-Skopírujte `env_example` a nastavte tajné kľúče:
+Skopírujte [build/docker/env_example](build/docker/env_example) do [build/docker/.env](build/docker/.env) a nastavte tajné kľúče:
 
 ```bash
 # Linux / macOS / Git Bash
-cp env_example .env
+cp build/docker/env_example build/docker/.env
 
 # Windows PowerShell
-Copy-Item env_example .env
+Copy-Item build/docker/env_example build/docker/.env
 ```
 
 Minimálne hodnoty, ktoré je potrebné zmeniť v `.env`:
@@ -79,7 +79,7 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=your-admin-password
 ```
 
-Všetky ostatné hodnoty majú bezpečné predvolené nastavenia a Docker Compose ich automaticky prepíše správnymi internými adresami (napr. `DATABASE_URL` a `MOCK_API_URL` sú nastavené na mená kontajnerov vnútri siete).
+Všetky ostatné hodnoty majú bezpečné predvolené nastavenia. Docker Compose zostaví interné adresy automaticky z premenných ako `DB_USER`, `DB_PASSWORD`, `DB_NAME` a `PROCESSING_SERVICE_PORT`, takže `DATABASE_URL` ani `PROCESSING_SERVICE_URL` sa v Docker `.env` nenastavujú ručne.
 
 **3. Spustite aplikáciu**
 
@@ -98,8 +98,9 @@ docker compose -f build/docker/docker-compose.yml up
 | Služba | URL | Popis |
 |---|---|---|
 | Flask aplikácia | http://localhost:8080 | Hlavné webové rozhranie |
-| Mock inference API | http://localhost:5000 | Simulovaný AI server |
+| Classifier service | http://localhost:5032 | Inference classifier / preprocessing service |
 | PostgreSQL | `localhost:5432` | Databáza (napr. pre pgAdmin) |
+| pgAdmin | http://localhost:5050 | Webová správa PostgreSQL |
 
 ### 🛑 Zastavenie a čistenie
 
@@ -119,9 +120,10 @@ docker compose -f build/docker/docker-compose.yml up --build
 Porty je možné zmeniť v `.env` súbore bez úpravy `build/docker/docker-compose.yml`:
 
 ```env
-FLASK_PORT=8080       # Port Flask aplikácie
-MOCK_API_PORT=5000    # Port mock inference servera
-DB_PORT=5432          # Port PostgreSQL
+FLASK_PORT=8080                # Port Flask aplikácie
+PROCESSING_SERVICE_PORT=5032   # Port processing service
+DB_PORT=5432                   # Port PostgreSQL
+PGADMIN_PORT=5050              # Port pgAdmin
 ```
 
 ### 📋 Správa jednotlivých služieb
@@ -129,7 +131,7 @@ DB_PORT=5432          # Port PostgreSQL
 ```bash
 # Sledovanie logov konkrétnej služby
 docker compose -f build/docker/docker-compose.yml logs -f flask-app
-docker compose -f build/docker/docker-compose.yml logs -f mock-api
+docker compose -f build/docker/docker-compose.yml logs -f classifier-service
 docker compose -f build/docker/docker-compose.yml logs -f db
 
 # Reštart jednej služby
@@ -212,24 +214,29 @@ Vytvorte `.env` súbor v `flask-app/` adresári (používajte `env_example` ako 
 ```env
 # Database Configuration
 DATABASE_URL=postgresql://username:password@localhost/retinal_db
-SQLALCHEMY_DATABASE_URI=postgresql://username:password@localhost/retinal_db
 
 # Flask Configuration
-FLASK_ENV=development
-FLASK_DEBUG=1
 SECRET_KEY=your-secret-key-here
+JWT_SECRET_KEY=your-jwt-secret-key-here
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=your-admin-password
 
 # Port Configuration (configurable)
 FLASK_PORT=8080          # Default: 8080 - Flask application port
-MOCK_API_PORT=5000       # Default: 5000 - Mock inference server port
+PROCESSING_SERVICE_PORT=5000   # Default: 5000 - Processing service port
 
-# Mock API Configuration
-MOCK_API_URL=http://localhost:5000
+# Processing Service Configuration
+PROCESSING_SERVICE_URL=http://localhost:5000
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
+LOG_FILE=app.log
 ```
 
 **Port Configuration:**
 - `FLASK_PORT` - Port pre Flask aplikáciu (predvolene: 8080)
-- `MOCK_API_PORT` - Port pre mock inference server (predvolene: 5000)
+- `PROCESSING_SERVICE_PORT` - Port pre processing service (predvolene: 5000)
 - Porty sú plne konfigurovateľné cez environment premenné
 
 #### 4. Database Setup
@@ -261,10 +268,10 @@ set FLASK_ENV=development && set FLASK_DEBUG=1 && python run.py
 Mock server simuluje AI spracovanie obrazov. Porty sú konfigurovateľné cez environment premenné:
 
 ```bash
-# V popredí (foreground) - použije MOCK_API_PORT alebo default 5000
+# V popredí (foreground) - použije PROCESSING_SERVICE_PORT alebo default 5000
 make mock-server
 
-# V pozadí (background) - použije MOCK_API_PORT alebo default 5000
+# V pozadí (background) - použije PROCESSING_SERVICE_PORT alebo default 5000
 make stop-mock-server
 
 # Spustenie oboch serverov naraz (porty sú konfigurovateľné)
@@ -275,7 +282,7 @@ make both-servers
 ```bash
 # Nastavte custom porty
 export FLASK_PORT=3000
-export MOCK_API_PORT=4000
+export PROCESSING_SERVICE_PORT=4000
 
 # Spustite servery s custom portami
 make both-servers  # Flask: 3000, Mock: 4000
@@ -331,7 +338,7 @@ make help
 - `make setup-dev` - Kompletné nastavenie development prostredia
 - `make both-servers` - Spustenie Flask app + mock servera (porty konfigurovateľné cez env)
 - `make dev` - Development režim Flask aplikácie (port konfigurovateľný cez FLASK_PORT)
-- `make mock-server` - Spustenie mock servera (port konfigurovateľný cez MOCK_API_PORT)
+- `make mock-server` - Spustenie mock servera (port konfigurovateľný cez PROCESSING_SERVICE_PORT)
 - `make health-check` - Kontrola stavu Flask aplikácie
 - `make health-check-mock` - Kontrola stavu mock servera
 - `make test` - Spustenie testov
@@ -400,30 +407,91 @@ python run.py
 
 ### 🔧 Environment Variables
 
-**Port Configuration:**
-```bash
-FLASK_PORT=8080        # Flask application port (default: 8080)
-MOCK_API_PORT=5000     # Mock inference server port (default: 5000)
-```
+#### `db`
 
-**Logging Configuration:**
-```bash
-LOG_LEVEL=INFO         # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL, TRACE (default: INFO)
-LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s  # Log format
-LOG_FILE=app.log       # Log file path (default: app.log)
-```
+| Variable | Default | Description |
+|---|---|---|
+| `DB_USER` | `postgres` | PostgreSQL username mapped to `POSTGRES_USER`. |
+| `DB_PASSWORD` | `postgres` | PostgreSQL password mapped to `POSTGRES_PASSWORD`. |
+| `DB_NAME` | `retinal_db` | PostgreSQL database name mapped to `POSTGRES_DB`. |
+| `DB_PORT` | `5432` | Host port published for PostgreSQL. Internal container port stays `5432`. |
 
-**Database Configuration:**
-```bash
-DATABASE_URL=postgresql://username:password@localhost/retinal_db
-SQLALCHEMY_DATABASE_URI=postgresql://username:password@localhost/retinal_db
-```
+#### `flask-app`
 
-**Security Configuration:**
-```bash
-SECRET_KEY=your-secret-key-here
-JWT_SECRET_KEY=your-jwt-secret-key-here
-```
+| Variable | Default | Description |
+|---|---|---|
+| `FLASK_ENV` | `development` | Flask runtime mode used in the Docker service definition. |
+| `FLASK_DEBUG` | `1` | Enables debug behavior for the Docker development container. |
+| `FLASK_PORT` | `8080` | Port on which the Flask service listens and is published in Docker. |
+| `DATABASE_URL` | `postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}` | Database connection string injected into the Flask app. Derived inside Compose from `DB_*` variables. |
+| `PROCESSING_SERVICE_URL` | `http://classifier-service:${PROCESSING_SERVICE_PORT}` | Internal URL used by the Flask app to call the classifier service. Derived inside Compose. |
+| `PROCESSING_SERVICE_PORT` | `5032` | Shared processing-service port used to build `PROCESSING_SERVICE_URL` and for local fallback logic in the Flask app. |
+| `SECRET_KEY` | `change-me-in-production` | Flask session and application secret. Replace in every non-local deployment. |
+| `JWT_SECRET_KEY` | `change-me-in-production` | Secret used by JWT token signing. Replace in every non-local deployment. |
+| `LOG_LEVEL` | `INFO` | Log verbosity for the Flask app. Supported values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`, `TRACE`. |
+| `LOG_FORMAT` | `%(asctime)s - %(name)s - %(levelname)s - %(message)s` | Python logging format string used by the Flask app logger. |
+| `LOG_FILE` | `app.log` | File path used by the Flask app file handler. |
+| `ADMIN_EMAIL` | `admin@example.com` | Email used when bootstrapping the initial super admin account. |
+| `ADMIN_PASSWORD` | `admin` | Password used when bootstrapping the initial super admin account. |
+
+#### `classifier-service`
+
+| Variable | Default | Description |
+|---|---|---|
+| `AZURE_STORAGE_SAS_TOKEN` | `your-sas-token` | SAS token forwarded to the classifier service image. |
+| `PROCESSING_SERVICE_PORT` | `5032` | Port on which the classifier service listens and is published in Docker. |
+| `LOG_LEVEL` | `INFO` | Log verbosity passed to the classifier service container. |
+| `LOG_FORMAT` | `%(asctime)s - %(name)s - %(levelname)s - %(message)s` | Logging format passed through to the classifier service container. |
+| `LOG_FILE` | `app.log` | Log file path passed through to the classifier service container. |
+| `REDIS_HOST` | `redis` | Internal Redis hostname used by the classifier service. Fixed in Compose. |
+| `REDIS_PORT` | `6379` | Internal Redis port used by the classifier service. Fixed in Compose. |
+
+#### `pgadmin`
+
+| Variable | Default | Description |
+|---|---|---|
+| `PGADMIN_DEFAULT_EMAIL` | `admin@example.com` | Login email for pgAdmin. |
+| `PGADMIN_DEFAULT_PASSWORD` | `admin` | Login password for pgAdmin. |
+| `PGADMIN_PORT` | `5050` | Host port published for pgAdmin. |
+
+#### `redis`
+
+Redis service v aktuálnom `docker-compose.yml` nepoužíva žiadne používateľské environment premenné. Beží s interným portom `6379` a perzistentným volume `redis-data`.
+
+### Local manual runtime
+
+#### `flask-app` (`flask-app/run.py`)
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:///app.db` | Database connection string used by SQLAlchemy. For PostgreSQL development nastavte explicitne PostgreSQL URL. |
+| `SQLALCHEMY_DATABASE_URI` | fallback only | Legacy alias. Ak `DATABASE_URL` nie je nastavené, aplikácia ešte akceptuje `SQLALCHEMY_DATABASE_URI`, ale udržiavaný názov je `DATABASE_URL`. |
+| `SECRET_KEY` | `dev` | Flask session and application secret. |
+| `JWT_SECRET_KEY` | `myjwtsecret` | Secret used by JWT token signing. |
+| `FLASK_PORT` | `8080` | Port used by `python run.py`. |
+| `PROCESSING_SERVICE_PORT` | `5000` | Fallback port used to build the local processing URL when `PROCESSING_SERVICE_URL` is not set. |
+| `PROCESSING_SERVICE_URL` | `http://localhost:${PROCESSING_SERVICE_PORT}` | URL of the processing service called by the Flask app. |
+| `LOG_LEVEL` | `INFO` | Log verbosity for the Flask app. |
+| `LOG_FORMAT` | `%(asctime)s - %(name)s - %(levelname)s - %(message)s` | Python logging format string. |
+| `LOG_FILE` | `app.log` | File path used by the Flask app file handler. |
+| `ADMIN_EMAIL` | no default | Required to auto-create the initial super admin user. |
+| `ADMIN_PASSWORD` | no default | Required to auto-create the initial super admin user. |
+
+#### `mock_api.py`
+
+| Variable | Default | Description |
+|---|---|---|
+| `PROCESSING_SERVICE_PORT` | `5000` | Port used by the local mock inference API. |
+| `LOG_LEVEL` | `INFO` | Log verbosity for `mock_api.py`. |
+| `LOG_FORMAT` | `%(asctime)s - %(name)s - %(levelname)s - %(message)s` | Python logging format string. |
+| `LOG_FILE` | `app.log` | File path used by the mock API file handler. |
+
+### Removed and merged variables
+
+- `SQLALCHEMY_DATABASE_URI` was merged into `DATABASE_URL` for normal configuration. The code still accepts it only as a backward-compatible fallback.
+- `DATABASE_URL` and `PROCESSING_SERVICE_URL` are generated inside Docker Compose, so they should not be duplicated in [build/docker/.env](build/docker/.env).
+- `MOCK_API_URL` and `MOCK_API_PORT` are legacy compatibility names. Prefer `PROCESSING_SERVICE_URL` and `PROCESSING_SERVICE_PORT` for all new configuration.
+- `JWT_COOKIE_SECURE`, `JWT_COOKIE_CSRF_PROTECT`, `JWT_COOKIE_SAMESITE` and `LOGIN_RATE_LIMIT` were removed from environment documentation because the current codebase does not read them from environment variables.
 
 ### 📊 Logging Features
 
