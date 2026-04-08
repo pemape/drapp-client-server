@@ -98,7 +98,7 @@ docker compose -f build/docker/docker-compose.yml up
 | Služba | URL | Popis |
 |---|---|---|
 | Flask aplikácia | http://localhost:8080 | Hlavné webové rozhranie |
-| Classifier service | http://localhost:5032 | Inference classifier / preprocessing service |
+| Classifier service | http://localhost:5000 | Inference classifier / preprocessing service |
 | PostgreSQL | `localhost:5432` | Databáza (napr. pre pgAdmin) |
 | pgAdmin | http://localhost:5050 | Webová správa PostgreSQL |
 
@@ -121,7 +121,7 @@ Porty je možné zmeniť v `.env` súbore bez úpravy `build/docker/docker-compo
 
 ```env
 FLASK_PORT=8080                # Port Flask aplikácie
-PROCESSING_SERVICE_PORT=5032   # Port processing service
+PROCESSING_SERVICE_PORT=5000   # Port processing service
 DB_PORT=5432                   # Port PostgreSQL
 PGADMIN_PORT=5050              # Port pgAdmin
 ```
@@ -425,7 +425,7 @@ python run.py
 | `FLASK_PORT` | `8080` | Port on which the Flask service listens and is published in Docker. |
 | `DATABASE_URL` | `postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}` | Database connection string injected into the Flask app. Derived inside Compose from `DB_*` variables. |
 | `PROCESSING_SERVICE_URL` | `http://classifier-service:${PROCESSING_SERVICE_PORT}` | Internal URL used by the Flask app to call the classifier service. Derived inside Compose. |
-| `PROCESSING_SERVICE_PORT` | `5032` | Shared processing-service port used to build `PROCESSING_SERVICE_URL` and for local fallback logic in the Flask app. |
+| `PROCESSING_SERVICE_PORT` | `5000` | Shared processing-service port used to build `PROCESSING_SERVICE_URL` and for local fallback logic in the Flask app. |
 | `SECRET_KEY` | `change-me-in-production` | Flask session and application secret. Replace in every non-local deployment. |
 | `JWT_SECRET_KEY` | `change-me-in-production` | Secret used by JWT token signing. Replace in every non-local deployment. |
 | `LOG_LEVEL` | `INFO` | Log verbosity for the Flask app. Supported values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`, `TRACE`. |
@@ -439,7 +439,7 @@ python run.py
 | Variable | Default | Description |
 |---|---|---|
 | `AZURE_STORAGE_SAS_TOKEN` | `your-sas-token` | SAS token forwarded to the classifier service image. |
-| `PROCESSING_SERVICE_PORT` | `5032` | Port on which the classifier service listens and is published in Docker. |
+| `PROCESSING_SERVICE_PORT` | `5000` | Port on which the classifier service listens and is published in Docker. |
 | `LOG_LEVEL` | `INFO` | Log verbosity passed to the classifier service container. |
 | `LOG_FORMAT` | `%(asctime)s - %(name)s - %(levelname)s - %(message)s` | Logging format passed through to the classifier service container. |
 | `LOG_FILE` | `app.log` | Log file path passed through to the classifier service container. |

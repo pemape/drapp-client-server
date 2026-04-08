@@ -32,7 +32,7 @@ All have safe fallback values; override only when the defaults do not fit your s
 | `DB_NAME` | `retinal_db` | PostgreSQL database name. |
 | `DB_PORT` | `5432` | Host port published for PostgreSQL. |
 | `FLASK_PORT` | `8080` | Host port published for the Flask application. |
-| `PROCESSING_SERVICE_PORT` | `5032` | Host port published for the classifier service. |
+| `PROCESSING_SERVICE_PORT` | `5000` | Host port published for the classifier service. |
 | `LOG_LEVEL` | `INFO` | Log verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`, `TRACE`). |
 | `LOG_FORMAT` | `%(asctime)s - %(name)s - %(levelname)s - %(message)s` | Python logging format string. |
 | `LOG_FILE` | `app.log` | Log file path inside the containers. |

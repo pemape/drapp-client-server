@@ -30,7 +30,7 @@ jobs:
           DB_NAME: ${{ vars.DB_NAME || 'retinal_db' }}
           DB_PORT: ${{ vars.DB_PORT || '5432' }}
           FLASK_PORT: ${{ vars.FLASK_PORT || '8080' }}
-          PROCESSING_SERVICE_PORT: ${{ vars.PROCESSING_SERVICE_PORT || '5032' }}
+          PROCESSING_SERVICE_PORT: ${{ vars.PROCESSING_SERVICE_PORT || '5000' }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
