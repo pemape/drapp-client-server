@@ -1,4 +1,4 @@
-.PHONY: help install dev-install run dev test clean migrate upgrade downgrade init-db reset-db lint format check-format deps-update venv activate mock-server mock-server-bg stop-mock-server both-servers
+.PHONY: help install dev-install run dev test clean migrate upgrade downgrade init-db reset-db lint format check-format deps-update venv activate mock-server mock-server-bg stop-mock-server both-servers docker-compose-up docker-compose-down docker-compose-rebuild
 
 # Default target
 help:
@@ -46,6 +46,7 @@ help:
 	@echo "🐳 DOCKER (if available):"
 	@echo "  docker-build  - Build Docker image"
 	@echo "  docker-run    - Run Docker container"
+	@echo "  docker-compose-rebuild - Rebuild images and restart compose stack"
 	@echo ""
 	@echo "For more details, see README.md"
 	@echo "==============================================="
@@ -189,6 +190,9 @@ docker-compose-up:
 
 docker-compose-down:
 	docker compose -f ../build/docker/docker-compose.yml down
+
+docker-compose-rebuild:
+	docker compose -f ../build/docker/docker-compose.yml up -d --build
 
 # Start mock inference server in foreground
 mock-server:
