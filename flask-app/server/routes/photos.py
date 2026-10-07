@@ -640,6 +640,11 @@ def processed_image_detail(processed_image_id):
             logger.error(f"Error creating URL for processed image: {e}")
             flash("Error loading processed image", "error")
 
+    # ---------- XAI (Grad-CAM) obrázok -------------------------------------
+    explanation_path = ""
+    if processed.explanation_image_path and os.path.exists(processed.explanation_image_path):
+        explanation_path = os.path.relpath(processed.explanation_image_path, Config.UPLOAD_FOLDER)
+
     # ---------- JSON pre šablónu -------------------------------------------
     # Get patient name
     patient_name = "-"
@@ -663,6 +668,8 @@ def processed_image_detail(processed_image_id):
             "name": original_name,
         },
         "processed_image_path": rel_path if processed.processed_image_path else "",
+        "explanation_image_path": explanation_path,
+        "explanation": processed.explanation or {},
         "original_image_path": os.path.relpath(original_path, Config.UPLOAD_FOLDER) if original_path else ""
     }
 

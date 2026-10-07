@@ -16,9 +16,12 @@
         <img id="original-image"
              src="{{ url_for('photos.serve_photo', filepath=processed_image.original_image_path) }}"
              alt="Original Image">
+        {% set shown_path = processed_image.processed_image_path or processed_image.explanation_image_path %}
+        {% if shown_path %}
         <img id="processed-image"
-             src="{{ url_for('photos.serve_photo', filepath=processed_image.processed_image_path) }}"
-             alt="Processed Image">
+             src="{{ url_for('photos.serve_photo', filepath=shown_path) }}"
+             alt="{{ 'Processed Image' if processed_image.processed_image_path else 'XAI Grad-CAM heatmap' }}">
+        {% endif %}
       </div>
     </div>
 
@@ -45,6 +48,9 @@
       <tr><th>Dátum a čas spracovania</th><td id="detail-processed">{{ processed_image.processed_at }}</td></tr>
       {% endif %}
       <tr><th>Výsledok</th> <td id="detail-answer">{{ processed_image.answer }}</td></tr>
+      {% if processed_image.explanation_image_path %}
+      <tr><th>XAI metóda</th><td id="detail-xai">{{ processed_image.explanation.method or 'Grad-CAM' }}{% if processed_image.explanation.target_class_label %} – {{ processed_image.explanation.target_class_label }}{% endif %}</td></tr>
+      {% endif %}
     </table>
 
     <div class="button-container">

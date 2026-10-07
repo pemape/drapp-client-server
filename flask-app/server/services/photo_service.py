@@ -335,6 +335,41 @@ class PhotoService:
             logger.error(f"Unexpected error checking processing server: {str(e)}")
             return False, f"Error checking processing server: {str(e)}"
 
+    def _store_explanation(self, processed_photo, photo, explanation):
+        """
+        Persist the Grad-CAM overlay returned by the inference server.
+
+        The base64 image is written to the patient's processed folder (the DB only keeps
+        the path plus lightweight metadata). Failures never affect the classification result.
+        """
+        if not explanation or explanation.get("status") != "SUCCESS":
+            if explanation:
+                logger.warning(f"Explanation not available: {explanation.get('error')}")
+            return
+
+        overlay_b64 = explanation.get("heatmap_overlay")
+        if not overlay_b64:
+            return
+
+        try:
+            processed_dir = os.path.join(self._create_user_directory(photo.patient_id), "processed")
+            filename = f"{photo.patient_id}_{photo.id}_{processed_photo.id}_xai_{uuid.uuid4().hex[:8]}.jpg"
+            abs_path = os.path.join(processed_dir, filename)
+
+            with open(abs_path, "wb") as f:
+                f.write(base64.b64decode(overlay_b64))
+
+            processed_photo.explanation_image_path = abs_path
+            processed_photo.explanation = {
+                "method": explanation.get("method"),
+                "framework": explanation.get("framework"),
+                "target_class_id": explanation.get("target_class_id"),
+                "target_class_label": explanation.get("target_class_label"),
+                "explanation_time_ms": explanation.get("explanation_time_ms"),
+            }
+        except Exception as e:
+            logger.error(f"Error saving explanation image: {str(e)}")
+
     def sent_image_to_processing(self,
                                  photo_id,
                                  method_name,
@@ -387,8 +422,9 @@ class PhotoService:
 
                     response = requests.post(
                         f"{Config.PROCESSING_SERVICE_URL}/process",
+                        params={"explain": "true"},
                         files=files,
-                        timeout=30
+                        timeout=60
                     )
 
                 if response.status_code != 200:
@@ -421,6 +457,8 @@ class PhotoService:
                     processed_photo.answer = f"{predicted_label} ({float(confidence_score):.2f})"
                 else:
                     processed_photo.answer = str(predicted_label)
+
+                self._store_explanation(processed_photo, photo, process_result.get("explanation"))
 
                 processed_photo.set_status(ProcessingStatus.COMPLETED)
                 db.session.commit()

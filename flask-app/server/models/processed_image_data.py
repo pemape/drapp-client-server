@@ -43,6 +43,10 @@ class ProcessedImageData(db.Model):
     segmentation_mask_path: Mapped[str] = mapped_column(db.String(255), nullable=True)
     bounding_boxes_path: Mapped[str] = mapped_column(db.String(255), nullable=True)
 
+    # XAI (Grad-CAM) heatmap overlay stored on disk; metadata (no base64) stored as JSON
+    explanation_image_path: Mapped[str] = mapped_column(db.String(255), nullable=True)
+    explanation: Mapped[dict] = mapped_column(db.JSON, nullable=True)
+
     answer: Mapped[dict] = mapped_column(db.JSON, nullable=True)
 
     # Vzťah k pôvodnému obrázku
