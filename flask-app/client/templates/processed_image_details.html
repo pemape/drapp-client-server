@@ -9,7 +9,45 @@
 {% endblock %}
 
 {% block content %}
+{% set expl = processed_image.explanation or {} %}
+{% set concepts = expl.get('concepts') or [] %}
+{% set concept_base = expl.get('preprocessed_image_path') %}
 <div class="processed-image-container hidden-js">
+  {% if concepts and concept_base %}
+  <div class="image-section concept-viewer" id="concept-viewer">
+    <div class="image-wrapper">
+      <div class="image-container" id="concept-stage">
+        <img id="concept-base"
+             src="{{ url_for('photos.serve_photo', filepath=concept_base) }}"
+             alt="Predspracovaná fotka">
+      </div>
+    </div>
+
+    <div class="controls concept-controls">
+      <label class="concept-option concept-option-all">
+        <input type="checkbox" id="concept-all"> <strong>Všetky koncepty</strong>
+      </label>
+      {% for c in concepts %}
+      <label class="concept-option{% if not c.heatmap_path %} disabled{% endif %}">
+        <input type="checkbox" class="concept-toggle" data-key="{{ c.key }}"
+               data-src="{{ url_for('photos.serve_photo', filepath=c.heatmap_path) if c.heatmap_path else '' }}"
+               {% if not c.heatmap_path %}disabled{% endif %}>
+        <span class="concept-swatch" data-key="{{ c.key }}"></span>
+        {{ c.label }}
+        {% if c.density_score is not none %}<small>({{ '%.3f'|format(c.density_score) }})</small>{% endif %}
+      </label>
+      {% endfor %}
+    </div>
+    <div class="concept-settings">
+      <label>Priehľadnosť
+        <input type="range" id="concept-opacity" min="10" max="100" value="80">
+      </label>
+      <label>
+        <input type="checkbox" id="concept-tint" checked> Farby podľa konceptu
+      </label>
+    </div>
+  </div>
+  {% else %}
   <div class="image-section">
     <div class="image-wrapper">
       <div class="image-container">
@@ -36,6 +74,7 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
   <div class="details-container">
     <h3>Detaily spracovanej fotky</h3>
@@ -52,6 +91,19 @@
       <tr><th>XAI metóda</th><td id="detail-xai">{{ processed_image.explanation.method or 'Grad-CAM' }}{% if processed_image.explanation.target_class_label %} – {{ processed_image.explanation.target_class_label }}{% endif %}</td></tr>
       {% endif %}
     </table>
+
+    {% if expl.get('probabilities') %}
+    <h3>Pravdepodobnosti tried</h3>
+    <div class="prob-list" id="class-probabilities">
+      {% for p in expl.probabilities %}
+      <div class="prob-row{% if p.predicted %} predicted{% endif %}">
+        <span class="prob-label">{{ p.class_id }} – {{ p.label }}{% if p.predicted %} <em>(výsledná trieda)</em>{% endif %}</span>
+        <span class="prob-bar"><span class="prob-fill" style="width: {{ (p.probability * 100)|round(1) }}%"></span></span>
+        <span class="prob-value">{{ '%.2f'|format(p.probability * 100) }} %</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="button-container">
       <a href="{{ url_for('photos.processed_images_list') }}"
@@ -97,4 +149,7 @@
 {% block scripts %}
   {{ super() }}
   <script src="{{ url_for('static', filename='js/processed_image_details.js') }}"></script>
+  {% if processed_image.explanation and processed_image.explanation.get('concepts') and processed_image.explanation.get('preprocessed_image_path') %}
+  <script src="{{ url_for('static', filename='js/concept_viewer.js') }}"></script>
+  {% endif %}
 {% endblock %}

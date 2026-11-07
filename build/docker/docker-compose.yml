@@ -41,6 +41,32 @@ services:
     networks:
       - tp-apvv-net
 
+  # ─── Fundus DR inference ("Detekcia": DR grade + MA/HE/SE/EX concept heatmaps) ─
+  fundus-dr-inference:
+    image: ${FUNDUS_IMAGE:-tanczi0810/fundus-dr-inference:1.0.0}
+    platform: linux/amd64                    # only arch published; Apple Silicon runs it emulated
+    container_name: tp-apvv-fundus-dr-inference
+    restart: unless-stopped
+    environment:
+      AUTH_TOKEN: ${FUNDUS_AUTH_TOKEN:-}     # empty = no auth
+      # Uses the redis of this stack (separate db index from the classifier)
+      REDIS_URL: redis://redis:6379/${FUNDUS_REDIS_DB:-1}
+      CACHE_TTL_S: ${FUNDUS_CACHE_TTL_S:-604800}
+      MAX_UPLOAD_MB: ${FUNDUS_MAX_UPLOAD_MB:-20}
+      CHECKPOINT_PATH: /models/${FUNDUS_CHECKPOINT_FILE:-earthy-sweep-1-epoch=16-val_loss=0.55.ckpt}
+      ACTIVATION_CACHE_DIR: /activation_cache
+    ports:
+      - "${FUNDUS_BIND_ADDR:-127.0.0.1}:${FUNDUS_PORT:-8000}:8000"
+    volumes:
+      # Not in git: copy the model checkpoint / activation cache here (see env_example)
+      - ${FUNDUS_CHECKPOINT_DIR:-./fundus-dr-inference/models}:/models:ro
+      - ${FUNDUS_ACTIVATION_CACHE_DIR:-./fundus-dr-inference/activation_cache}:/activation_cache:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - tp-apvv-net
+
   # ─── Redis (for caching) ─────────────────────────────────────────────────────
   redis:
     image: redis:latest
@@ -54,7 +80,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: redis-server --appendonly yes
+    # Shared with fundus-dr-inference (its cache entries carry a TTL, db 1). Memory is bounded and only
+    # keys with a TTL are evicted, so classifier data in db 0 is never dropped to make room for them.
+    command: redis-server --appendonly yes --maxmemory ${REDIS_MAXMEMORY:-512mb} --maxmemory-policy volatile-lru
     volumes:
       - redis-data:/data
 
@@ -92,6 +120,10 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-retinal_db}
       PROCESSING_SERVICE_URL: http://classifier-service:${PROCESSING_SERVICE_PORT:-5000}
       PROCESSING_SERVICE_PORT: "${PROCESSING_SERVICE_PORT:-5000}"
+      FUNDUS_INFERENCE_URL: http://fundus-dr-inference:8000
+      FUNDUS_INFERENCE_AUTH_TOKEN: ${FUNDUS_AUTH_TOKEN:-}
+      FUNDUS_INFERENCE_TIMEOUT_S: ${FUNDUS_INFERENCE_TIMEOUT_S:-300}
+      FUNDUS_INFERENCE_N_STEPS: ${FUNDUS_INFERENCE_N_STEPS:-5}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -110,6 +142,8 @@ services:
       db:
         condition: service_healthy
       classifier-service:
+        condition: service_started
+      fundus-dr-inference:
         condition: service_started
     networks:
       - tp-apvv-net

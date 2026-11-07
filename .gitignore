@@ -57,6 +57,9 @@ instance/
 .env
 .flaskenv
 
+# Fundus DR inference model files (large, copied manually)
+build/docker/fundus-dr-inference/
+
 # Database
 *.db
 *.sqlite3

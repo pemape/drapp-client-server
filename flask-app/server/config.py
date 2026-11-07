@@ -57,6 +57,14 @@ class Config:
         or os.environ.get('MOCK_API_URL')
         or f"http://localhost:{PROCESSING_SERVICE_PORT}"
     )
+
+    # Fundus DR inference service ("Detekcia": DR grade + concept heatmaps)
+    DETECTION_METHOD_NAME = os.environ.get('DETECTION_METHOD_NAME', 'Detekcia')
+    FUNDUS_INFERENCE_URL = (os.environ.get('FUNDUS_INFERENCE_URL') or 'http://localhost:8000').rstrip('/')
+    FUNDUS_INFERENCE_AUTH_TOKEN = os.environ.get('FUNDUS_INFERENCE_AUTH_TOKEN') or ''
+    FUNDUS_INFERENCE_TIMEOUT_S = int(os.environ.get('FUNDUS_INFERENCE_TIMEOUT_S') or 300)
+    FUNDUS_INFERENCE_N_STEPS = int(os.environ.get('FUNDUS_INFERENCE_N_STEPS') or 5)
+
     RECIEVING_ENDPOINT = f"http://localhost:{FLASK_PORT}/photos/processed/recieve"
 
     @staticmethod

@@ -1,4 +1,5 @@
 import base64
+import mimetypes
 import os
 import uuid
 from datetime import datetime
@@ -19,6 +20,32 @@ from server.services.methods_service import MethodsService
 
 logger = logging.getLogger(__name__)
 methods_service = MethodsService()
+
+# Canonical DR grade names used across the app. Some services return abbreviated names
+# such as "Moderate NPDR", but the classifier uses the longer wording.
+DR_CLASS_LABELS = {
+    0: "No DR",
+    1: "Mild Non-Proliferative DR",
+    2: "Moderate Non-Proliferative DR",
+    3: "Severe Non-Proliferative DR",
+    4: "Proliferative DR",
+}
+
+DR_CLASS_ALIASES = {
+    "no dr": "No DR",
+    "no diabetic retinopathy": "No DR",
+    "mild npdr": "Mild Non-Proliferative DR",
+    "mild non-proliferative dr": "Mild Non-Proliferative DR",
+    "mild diabetic retinopathy": "Mild Non-Proliferative DR",
+    "moderate npdr": "Moderate Non-Proliferative DR",
+    "moderate non-proliferative dr": "Moderate Non-Proliferative DR",
+    "moderate diabetic retinopathy": "Moderate Non-Proliferative DR",
+    "severe npdr": "Severe Non-Proliferative DR",
+    "severe non-proliferative dr": "Severe Non-Proliferative DR",
+    "severe diabetic retinopathy": "Severe Non-Proliferative DR",
+    "proliferative dr": "Proliferative DR",
+    "proliferative diabetic retinopathy": "Proliferative DR",
+}
 
 class PhotoService:
     def __init__(self, base_upload_path=Config.UPLOAD_FOLDER):      
@@ -335,6 +362,172 @@ class PhotoService:
             logger.error(f"Unexpected error checking processing server: {str(e)}")
             return False, f"Error checking processing server: {str(e)}"
 
+    @staticmethod
+    def is_detection_method(method_name):
+        """The 'Detekcia' method is served by the fundus-dr-inference service."""
+        return (method_name or "").strip().lower() == Config.DETECTION_METHOD_NAME.strip().lower()
+
+    def check_detection_server_availability(self):
+        """Check if the fundus-dr-inference service is available."""
+        try:
+            response = requests.get(f"{Config.FUNDUS_INFERENCE_URL}/health", timeout=3)
+            if response.status_code == 200:
+                return True, "Detection server is available"
+            logger.warning(f"Detection server returned status code: {response.status_code}")
+            return False, f"Detection server is not available (status code: {response.status_code})"
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Cannot connect to the detection server: {str(e)}")
+            return False, "Detection server is not running or unreachable"
+
+    def check_methods_availability(self, method_names):
+        """Check only the servers needed by the requested methods."""
+        names = list(method_names or [])
+        if any(not self.is_detection_method(n) for n in names):
+            available, message = self.check_processing_server_availability()
+            if not available:
+                return False, message
+        if any(self.is_detection_method(n) for n in names):
+            available, message = self.check_detection_server_availability()
+            if not available:
+                return False, message
+        return True, "Servers are available"
+
+    @staticmethod
+    def _normalize_dr_label(label):
+        """Normalize DR labels from different services to the same canonical wording."""
+        if label is None:
+            return None
+        normalized = str(label).strip()
+        normalized_lower = normalized.lower()
+        if normalized_lower in DR_CLASS_ALIASES:
+            return DR_CLASS_ALIASES[normalized_lower]
+        for alias, canonical in DR_CLASS_ALIASES.items():
+            if alias in normalized_lower:
+                return canonical
+        return normalized
+
+    @staticmethod
+    def _map_class_probabilities(prediction):
+        """Map the per-class probabilities to class labels and flag the final (predicted) class."""
+        predicted_id = int(prediction["predicted_class"])
+        mapped = []
+        for key, value in (prediction.get("probabilities") or {}).items():
+            class_id = int(key)
+            label = DR_CLASS_LABELS.get(class_id, f"Trieda {class_id}")
+            if class_id == predicted_id:
+                candidate = prediction.get("class_name")
+                if candidate:
+                    label = PhotoService._normalize_dr_label(candidate)
+                else:
+                    label = DR_CLASS_LABELS.get(class_id, label)
+            mapped.append({
+                "class_id": class_id,
+                "label": label,
+                "probability": float(value),
+                "predicted": class_id == predicted_id,
+            })
+        return sorted(mapped, key=lambda item: item["class_id"])
+
+    def _relative_upload_path(self, abs_path):
+        return os.path.relpath(abs_path, self.base_upload_path).replace(os.sep, "/")
+
+    @staticmethod
+    def _image_extension(data):
+        return "png" if data[:8] == b"\x89PNG\r\n\x1a\n" else "jpg"
+
+    def _process_detection(self, processed_photo, photo):
+        """
+        Send the photo to fundus-dr-inference and store DR grade, class probabilities
+        and the per-concept (MA, HE, SE, EX) heatmaps with the preprocessed image they refer to.
+        """
+        headers = {}
+        if Config.FUNDUS_INFERENCE_AUTH_TOKEN:
+            headers["Authorization"] = f"Bearer {Config.FUNDUS_INFERENCE_AUTH_TOKEN}"
+
+        mime_type = mimetypes.guess_type(photo.original_image_path)[0] or "image/jpeg"
+        try:
+            with open(photo.original_image_path, "rb") as image_file:
+                response = requests.post(
+                    f"{Config.FUNDUS_INFERENCE_URL}/inference",
+                    params={"heatmaps": "true", "n_steps": Config.FUNDUS_INFERENCE_N_STEPS},
+                    files={"file": (os.path.basename(photo.original_image_path), image_file, mime_type)},
+                    headers=headers,
+                    timeout=Config.FUNDUS_INFERENCE_TIMEOUT_S,
+                )
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error sending image to detection server: {str(e)}")
+            processed_photo.set_status(ProcessingStatus.ERROR)
+            db.session.commit()
+            return False, 500, f"Network error sending image to detection server: {str(e)}"
+
+        if response.status_code != 200:
+            try:
+                error_detail = response.json().get("detail", "")
+            except ValueError:
+                error_detail = response.text
+            processed_photo.set_status(ProcessingStatus.ERROR)
+            db.session.commit()
+            return False, response.status_code, f"Detection request failed ({response.status_code}): {error_detail}"
+
+        try:
+            data = response.json()
+            prediction = data["prediction"]
+            probabilities = self._map_class_probabilities(prediction)
+            final_class = next(p for p in probabilities if p["predicted"])
+
+            processed_dir = os.path.join(self._create_user_directory(photo.patient_id), "processed")
+            file_prefix = f"{photo.patient_id}_{photo.id}_{processed_photo.id}_{uuid.uuid4().hex[:8]}"
+
+            def save_b64(b64_data, suffix):
+                raw = base64.b64decode(b64_data)
+                path = os.path.join(processed_dir, f"{file_prefix}_{suffix}.{self._image_extension(raw)}")
+                with open(path, "wb") as f:
+                    f.write(raw)
+                return path
+
+            preprocessed_path = None
+            if data.get("preprocessed_image_b64"):
+                preprocessed_path = save_b64(data["preprocessed_image_b64"], "preprocessed")
+
+            concepts = []
+            for key, concept in (data.get("concepts") or {}).items():
+                heatmap_path = None
+                # Heatmaps are only meaningful on top of the preprocessed image (different geometry than the original)
+                if preprocessed_path and concept.get("heatmap_b64"):
+                    heatmap_path = self._relative_upload_path(save_b64(concept["heatmap_b64"], f"concept_{key}"))
+                concepts.append({
+                    "key": key,
+                    "label": concept.get("label") or key.upper(),
+                    "density_score": concept.get("density_score"),
+                    "heatmap_path": heatmap_path,
+                })
+
+            processed_photo.answer = f"{final_class['label']} ({final_class['probability']:.2f})"
+            if preprocessed_path:
+                processed_photo.explanation_image_path = preprocessed_path
+            processed_photo.explanation = {
+                "type": "concepts",
+                "method": "Concept heatmaps",
+                "framework": "fundus-dr-inference",
+                "target_class_id": final_class["class_id"],
+                "target_class_label": final_class["label"],
+                "probabilities": probabilities,
+                "concepts": concepts,
+                "preprocessed_image_path": self._relative_upload_path(preprocessed_path) if preprocessed_path else None,
+                "cached": bool(data.get("cached")),
+                "sha256": data.get("sha256"),
+                "explanation_time_ms": round(float(data.get("computation_time_s") or 0) * 1000),
+            }
+            processed_photo.set_status(ProcessingStatus.COMPLETED)
+            db.session.commit()
+            return True, 200, "Image evaluated successfully"
+        except Exception as e:
+            logger.exception(f"Error processing detection response: {str(e)}")
+            db.session.rollback()
+            processed_photo.set_status(ProcessingStatus.ERROR)
+            db.session.commit()
+            return False, 500, f"Error processing detection response: {str(e)}"
+
     def _store_explanation(self, processed_photo, photo, explanation):
         """
         Persist the Grad-CAM overlay returned by the inference server.
@@ -380,8 +573,11 @@ class PhotoService:
                                  camera_type):
         """Send a photo to processing."""
         try:
-            # First, check if the processing server is available
-            server_available, message = self.check_processing_server_availability()
+            # First, check if the server needed for this method is available
+            if self.is_detection_method(method_name):
+                server_available, message = self.check_detection_server_availability()
+            else:
+                server_available, message = self.check_processing_server_availability()
             if not server_available:
                 logger.error(f"Processing server not available: {message}")
                 return False, 503, f"Processing server is not available: {message}"
@@ -406,6 +602,10 @@ class PhotoService:
             # Add and commit to the database
             db.session.add(processed_photo)
             db.session.commit()
+
+            if self.is_detection_method(method_name):
+                logger.info(f"Sending image to detection server: {photo.original_image_path}")
+                return self._process_detection(processed_photo, photo)
 
             logger.info(f"Sending image to inference server: {photo.original_image_path}")
 
@@ -449,6 +649,11 @@ class PhotoService:
 
                 if predicted_label is None:
                     predicted_label = classification.get("predicted_class")
+
+                if isinstance(predicted_label, (int, float)):
+                    predicted_label = DR_CLASS_LABELS.get(int(predicted_label), str(predicted_label))
+                else:
+                    predicted_label = self._normalize_dr_label(predicted_label)
 
                 if predicted_label is None:
                     predicted_label = "Unknown"

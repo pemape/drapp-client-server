@@ -356,7 +356,7 @@ def add_photo_post():
             return redirect(url_for('photos.photos_list'))
 
         # If methods, check processing server
-        server_available, server_message = photo_service.check_processing_server_availability()
+        server_available, server_message = photo_service.check_methods_availability(methods_to_process)
         if not server_available:
             flash('Photo uploaded successfully but processing server is unavailable: ' + server_message, 'warning')
             return redirect(url_for('photos.photo_detail', photo_id=photo_id))
@@ -487,8 +487,8 @@ def sent_to_processing():
     if not method_names:
         return jsonify({"status": "error", "message": "No methods specified for processing"}), 400
 
-    # Check if the processing server is available first
-    server_available, message = photo_service.check_processing_server_availability()
+    # Check if the servers needed by the requested methods are available first
+    server_available, message = photo_service.check_methods_availability(method_names)
     if not server_available:
         logger.error(f"Processing server not available: {message}")
         return jsonify({

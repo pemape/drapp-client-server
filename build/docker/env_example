@@ -17,6 +17,19 @@ ADMIN_PASSWORD=password_example
 PROCESSING_SERVICE_PORT=5000
 AZURE_STORAGE_SAS_TOKEN=your-sas-token
 
+# Fundus DR inference service ("Detekcia") - uses the redis of this stack
+# Put the model checkpoint into FUNDUS_CHECKPOINT_DIR and the concept activation cache
+# (<key>.npz + <key>.json) into FUNDUS_ACTIVATION_CACHE_DIR. Do not rename these files.
+FUNDUS_CHECKPOINT_DIR=./fundus-dr-inference/models
+FUNDUS_ACTIVATION_CACHE_DIR=./fundus-dr-inference/activation_cache
+FUNDUS_CHECKPOINT_FILE=earthy-sweep-1-epoch=16-val_loss=0.55.ckpt
+FUNDUS_AUTH_TOKEN=
+FUNDUS_PORT=8000
+FUNDUS_REDIS_DB=1
+FUNDUS_INFERENCE_TIMEOUT_S=300
+FUNDUS_INFERENCE_N_STEPS=5
+REDIS_MAXMEMORY=512mb
+
 # Shared logging
 LOG_LEVEL=INFO
 LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
